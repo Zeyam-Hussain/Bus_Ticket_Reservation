@@ -1,0 +1,7 @@
+# Ensure Authorization header is passed to PHP
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+
+# Optional: Disable directory browsing
+Options -Indexes
