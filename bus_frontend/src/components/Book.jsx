@@ -8,7 +8,7 @@ import SearchButton from './SearchButton';
 import CityCarousel from './CityCarousel';
 // import SplineScene from './SplineScene';
 import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const CITIES = ['Karachi', 'Lahore', 'Islamabad', 'Peshawar'];
 
@@ -18,6 +18,7 @@ const Book = () => {
   const [gender, setGender] = useState('');
   const [date, setDate] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const navigate = useNavigate();
 
   // Trigger initial animation
   useEffect(() => {
@@ -32,7 +33,15 @@ const Book = () => {
 
   const handleSearch = () => {
     console.log('Search:', { fromCity, toCity, gender, date });
-    // Navigate to routes or handle search
+    // Navigate to BookResult with state
+    navigate('/book-result', { 
+      state: { 
+        fromCity, 
+        toCity, 
+        gender, 
+        date: date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+      } 
+    });
   };
 
   return (
