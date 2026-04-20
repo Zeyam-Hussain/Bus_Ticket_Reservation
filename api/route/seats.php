@@ -27,10 +27,19 @@ try {
             s.seat_id,
             s.seat_number,
             CASE
-                WHEN b.booking_id IS NULL         THEN 'available'
-                WHEN b.passenger_gender = 'Male'  THEN 'booked_male'
-                WHEN b.passenger_gender = 'Female' THEN 'booked_female'
-                ELSE 'booked'
+                WHEN b.booking_id IS NOT NULL THEN (
+                    CASE 
+                        WHEN b.passenger_gender = 'Female' THEN 'booked_female'
+                        ELSE 'booked_male'
+                    END
+                )
+                WHEN l.lock_id IS NOT NULL AND l.locked_until > NOW() THEN (
+                    CASE 
+                        WHEN l.gender = 'Female' THEN 'booked_female'
+                        ELSE 'booked_male'
+                    END
+                )
+                ELSE 'available'
             END AS current_status
         FROM seat s
         JOIN route r ON s.bus_id = r.bus_id
@@ -38,6 +47,10 @@ try {
             ON s.seat_id     = b.seat_id
             AND b.route_id   = r.route_id
             AND b.booking_status = 'confirmed'
+        LEFT JOIN seat_locks l
+            ON s.seat_id     = l.seat_id
+            AND l.route_id   = r.route_id
+            AND l.locked_until > NOW()
         WHERE r.route_id = :route_id
         ORDER BY s.seat_id ASC
     ");

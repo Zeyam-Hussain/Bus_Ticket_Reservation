@@ -90,6 +90,22 @@ try {
             throw new Exception("Seat $seat_id is already booked.", 409);
         }
 
+        // 3.5 Check if locked temporarily by ANOTHER user
+        $lock_check = $db->prepare("
+            SELECT user_id FROM seat_locks
+            WHERE route_id = :route_id AND seat_id = :seat_id AND locked_until > NOW()
+        ");
+        $lock_check->bindParam(':route_id', $data['route_id']);
+        $lock_check->bindParam(':seat_id',  $seat_id);
+        $lock_check->execute();
+
+        if ($lock_check->rowCount() > 0) {
+            $lock = $lock_check->fetch(PDO::FETCH_ASSOC);
+            if ($lock['user_id'] != $user_id) {
+                throw new Exception("Seat $seat_id is currently locked by another user completing their payment.", 409);
+            }
+        }
+
         // 4. Gender rule: adjacent seats must be same gender (unless same user / family)
         $adjacent_seat_id = ($seat_id % 2 !== 0) ? ($seat_id + 1) : ($seat_id - 1);
 
@@ -122,6 +138,12 @@ try {
         $insert->bindParam(':seat_id',  $seat_id);
         $insert->bindParam(':gender',   $gender);
         $insert->execute();
+
+        // 6. Clear lock
+        $clear_lock = $db->prepare("DELETE FROM seat_locks WHERE route_id = :route_id AND seat_id = :seat_id");
+        $clear_lock->bindParam(':route_id', $data['route_id']);
+        $clear_lock->bindParam(':seat_id',  $seat_id);
+        $clear_lock->execute();
     }
 
     $db->commit();

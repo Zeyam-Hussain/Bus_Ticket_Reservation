@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 /* ─────────────────────────────────────────
    COLOR SYSTEM — extracted from Book.jsx
@@ -205,7 +205,7 @@ const PricePanel = ({ price, seatsLeft }) => (
 );
 
 /* ─────────────── BUS CARD ─────────────────── */
-const BusCard = ({ bus, index }) => {
+const BusCard = ({ bus, index, onClick }) => {
   const [hovered, setHovered] = useState(false);
   const style = {
     background: hovered ? THEME.cardHover : THEME.card,
@@ -228,7 +228,7 @@ const BusCard = ({ bus, index }) => {
   };
 
   return (
-    <div style={style} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div style={style} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={onClick}>
       {/* LEFT: Company info + amenities */}
       <div style={{ minWidth: 160, flexShrink: 0 }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: THEME.text, fontFamily: 'Syne, sans-serif', marginBottom: 2 }}>
@@ -388,6 +388,7 @@ const CursorGlow = () => {
 /* ─────────────── MAIN COMPONENT ─────────────────── */
 const BusResults = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { 
     fromCity = 'Karachi', 
     toCity = 'Rawalpindi', 
@@ -558,7 +559,12 @@ const BusResults = () => {
               </div>
             ) : displayedBuses.length > 0 ? (
               displayedBuses.map((bus, i) => (
-                <BusCard key={bus.id} bus={bus} index={i} />
+                <BusCard 
+                  key={bus.id} 
+                  bus={bus} 
+                  index={i} 
+                  onClick={() => navigate('/seat-selection', { state: { trip: { fromCity, toCity, gender, date }, bus } })} 
+                />
               ))
             ) : (
               <div style={{

@@ -6,7 +6,8 @@ import Signup from './components/Signup';
 import VerifyEmail from './components/VerifyEmail';
 import Book from './components/Book';
 import AccountSettings from './components/AccountSettings';
-import BookResult from './components/BookResult' ;
+import BookResult from './components/BookResult';
+import SeatSelection from './components/SeatSelection';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/book" element={<Book />} />
         <Route path="/account-settings" element={<AccountSettings />} />
         <Route path="/book-result" element={<BookResult />} />
+        <Route path="/seat-selection" element={<SeatSelection />} />
       </Routes>
     </BrowserRouter>
   );
