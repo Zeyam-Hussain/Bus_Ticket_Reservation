@@ -24,11 +24,12 @@ const Payment = () => {
   const [success, setSuccess] = useState(false);
   const [errorPop, setErrorPop] = useState(null);
 
-  // Form states
-  const [cardName, setCardName] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
+  // Form states with functional demo placeholders
+  const [cardName, setCardName] = useState('John Doe');
+  const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242');
+  const [expiry, setExpiry] = useState('12/26');
+  const [cvv, setCvv] = useState('123');
+  const [mobileNumber, setMobileNumber] = useState('0300 1234567');
 
   // Fallback check: if accessed directly without state, redirect
   useEffect(() => {
@@ -41,6 +42,10 @@ const Payment = () => {
     e.preventDefault();
     if (paymentMethod === 'card' && (!cardName || !cardNumber || !expiry || !cvv)) {
         setErrorPop("Please fill all card details correctly.");
+        return;
+    }
+    if ((paymentMethod === 'easypaisa' || paymentMethod === 'jazzcash') && !mobileNumber) {
+        setErrorPop("Please enter your mobile number for the wallet.");
         return;
     }
     
@@ -68,39 +73,55 @@ const Payment = () => {
       const json = await res.json();
       
       if (res.ok && json.status === 'success') {
-          // Record payments for each seat
+          // ── Step 2: Record payment for each booking & confirm it in DB ──────
           const bookingIds = json.booking_ids || [];
-          const amountPerSeat = totalPrice / (bookingIds.length || 1);
-          
+          const amountPerSeat = parseFloat((totalPrice / (bookingIds.length || 1)).toFixed(2));
+
+          const paymentErrors = [];
+
           for (const bid of bookingIds) {
               try {
-                  await fetch('/api/payment/process.php', {
+                  const payRes = await fetch('/api/payment/process.php', {
                       method: 'POST',
-                      headers: { 
+                      headers: {
                           'Content-Type': 'application/json',
-                          ...(token ? {'Authorization': `Bearer ${token}`} : {})
+                          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                       },
                       body: JSON.stringify({
                           booking_id: bid,
                           total_amount: amountPerSeat,
-                          payment_method: paymentMethod
+                          payment_method: paymentMethod  // card | bank | easypaisa | jazzcash
                       })
                   });
-              } catch (e) {
-                  console.error(`Payment recording failed for booking ${bid}`, e);
+
+                  const payJson = await payRes.json();
+
+                  if (!payRes.ok || payJson.status !== 'success') {
+                      paymentErrors.push(payJson.message || `Payment failed for booking #${bid}.`);
+                  }
+              } catch (netErr) {
+                  paymentErrors.push(`Network error for booking #${bid}. Check your connection.`);
               }
           }
 
-          setSuccess(true);
-          setTimeout(() => {
-              navigate('/'); // Or to dashboard
-          }, 3000);
+          if (paymentErrors.length > 0) {
+              // Bookings are in DB as 'pending' — surface the real error
+              setErrorPop(
+                  `Booking recorded but payment failed: ${paymentErrors[0]} ` +
+                  `Please contact support with your booking reference.`
+              );
+              setLoading(false);
+          } else {
+              // ✅ All payments written to DB, bookings are now 'confirmed'
+              setSuccess(true);
+              setTimeout(() => navigate('/'), 3000);
+          }
       } else {
-          setErrorPop(json.message || "Booking failed.");
+          setErrorPop(json.message || 'Booking failed. Please try again.');
           setLoading(false);
       }
     } catch (error) {
-      setErrorPop("Network error during payment processing.");
+      setErrorPop('Network error. Please check your connection and try again.');
       setLoading(false);
     }
   };
@@ -237,9 +258,33 @@ const Payment = () => {
                     </div>
                   )}
 
-                  {paymentMethod !== 'card' && (
+                  {(paymentMethod === 'easypaisa' || paymentMethod === 'jazzcash') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeUp 0.3s ease' }}>
+                       <div>
+                        <label style={{ display: 'block', fontSize: 12, color: T.muted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account Mobile Number</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. 0300 1234567" 
+                          value={mobileNumber} 
+                          onChange={e => setMobileNumber(e.target.value)} 
+                          style={inputStyle} 
+                          required 
+                        />
+                      </div>
+                      <div style={{ padding: '20px', textAlign: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: 16, border: `1px dashed ${T.borderBright}` }}>
+                        <p style={{ color: T.muted, fontSize: 13, margin: 0 }}>
+                          A prompt will be sent to your mobile device.<br/>Please authorize the payment in your app.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'bank' && (
                      <div style={{ padding: '30px 20px', textAlign: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: 16, border: `1px dashed ${T.borderBright}` }}>
-                        <p style={{ color: T.muted, fontSize: 14 }}>You have selected {paymentMethod}.<br/> You will be redirected to the provider's portal after clicking Complete Payment.</p>
+                        <p style={{ color: T.muted, fontSize: 14 }}>
+                          You have selected <strong>Bank Transfer</strong>.<br/> 
+                          Transfer instructions will be sent to your email after checkout.
+                        </p>
                      </div>
                   )}
 

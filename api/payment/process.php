@@ -31,7 +31,7 @@ if (!is_numeric($data->total_amount) || $data->total_amount <= 0) {
     exit();
 }
 
-$allowed_methods = ['cash', 'card', 'easypaisa', 'jazzcash'];
+$allowed_methods = ['cash', 'card', 'easypaisa', 'jazzcash', 'bank'];
 if (!in_array(strtolower($data->payment_method), $allowed_methods)) {
     http_response_code(400);
     echo json_encode(["status" => "error", "message" => "Invalid payment method."]);
