@@ -13,7 +13,7 @@ const LEFT_CITIES = [
 
 const RIGHT_CITIES = [
   { id: 3, name: 'Islamabad', image: islamabadImg },
-  { id: 4, name: 'Peshawar', image: peshawarImg },
+  { id: 4, name: 'Peshawar', image: karachiImg },
 ];
 
 const CityCard = ({ city }) => (

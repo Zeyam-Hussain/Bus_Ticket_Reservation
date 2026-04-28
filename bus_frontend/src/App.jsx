@@ -8,10 +8,13 @@ import Book from './components/Book';
 import AccountSettings from './components/AccountSettings';
 import BookResult from './components/BookResult';
 import SeatSelection from './components/SeatSelection';
+import Payment from './components/Payment';
+import TokenGuardian from './components/TokenGuardian';
 
 function App() {
   return (
     <BrowserRouter>
+      <TokenGuardian />
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
@@ -21,6 +24,7 @@ function App() {
         <Route path="/account-settings" element={<AccountSettings />} />
         <Route path="/book-result" element={<BookResult />} />
         <Route path="/seat-selection" element={<SeatSelection />} />
+        <Route path="/payment" element={<Payment />} />
       </Routes>
     </BrowserRouter>
   );

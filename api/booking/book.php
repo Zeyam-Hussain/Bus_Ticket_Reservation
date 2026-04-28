@@ -35,13 +35,14 @@ try {
     $cap_stmt = $db->prepare("
         SELECT b.total_capacity,
             (SELECT COUNT(*) FROM booking
-             WHERE route_id = :route_id AND booking_status = 'confirmed') AS current_bookings
+             WHERE route_id = :rid1 AND booking_status IN ('confirmed', 'pending')) AS current_bookings
         FROM bus b
         JOIN route r ON b.bus_id = r.bus_id
-        WHERE r.route_id = :route_id
+        WHERE r.route_id = :rid2
         LIMIT 1
     ");
-    $cap_stmt->bindParam(':route_id', $data['route_id']);
+    $cap_stmt->bindParam(':rid1', $data['route_id']);
+    $cap_stmt->bindParam(':rid2', $data['route_id']);
     $cap_stmt->execute();
     $capacity = $cap_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -54,6 +55,8 @@ try {
     if (($capacity['current_bookings'] + $total_requested) > $capacity['total_capacity']) {
         throw new Exception("Not enough seats available.", 409);
     }
+
+    $booking_ids = [];
 
     foreach ($data['seats'] as $seat) {
 
@@ -80,7 +83,7 @@ try {
         // 3. Check seat not already booked on this route
         $seat_check = $db->prepare("
             SELECT booking_id FROM booking
-            WHERE route_id = :route_id AND seat_id = :seat_id AND booking_status = 'confirmed'
+            WHERE route_id = :route_id AND seat_id = :seat_id AND booking_status IN ('confirmed', 'pending')
         ");
         $seat_check->bindParam(':route_id', $data['route_id']);
         $seat_check->bindParam(':seat_id',  $seat_id);
@@ -113,7 +116,7 @@ try {
             SELECT passenger_gender, user_id FROM booking
             WHERE route_id = :route_id
               AND seat_id  = :adjacent
-              AND booking_status = 'confirmed'
+              AND booking_status IN ('confirmed', 'pending')
             LIMIT 1
         ");
         $neighbor->bindParam(':route_id', $data['route_id']);
@@ -131,13 +134,15 @@ try {
         // 5. Insert booking
         $insert = $db->prepare("
             INSERT INTO booking (user_id, route_id, seat_id, passenger_gender, booking_date, booking_status)
-            VALUES (:user_id, :route_id, :seat_id, :gender, NOW(), 'confirmed')
+            VALUES (:user_id, :route_id, :seat_id, :gender, NOW(), 'pending')
         ");
         $insert->bindParam(':user_id',  $user_id);
         $insert->bindParam(':route_id', $data['route_id']);
         $insert->bindParam(':seat_id',  $seat_id);
         $insert->bindParam(':gender',   $gender);
         $insert->execute();
+
+        $booking_ids[] = (int)$db->lastInsertId();
 
         // 6. Clear lock
         $clear_lock = $db->prepare("DELETE FROM seat_locks WHERE route_id = :route_id AND seat_id = :seat_id");
@@ -151,7 +156,8 @@ try {
     http_response_code(201);
     echo json_encode([
         "status"  => "success",
-        "message" => "All seats booked successfully!"
+        "message" => "All seats booked successfully!",
+        "booking_ids" => $booking_ids
     ]);
 
 } catch (Exception $e) {

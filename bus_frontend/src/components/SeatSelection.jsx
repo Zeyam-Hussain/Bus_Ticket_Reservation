@@ -999,13 +999,39 @@ const SeatSelection = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
   const [shiftHeld, setShiftHeld] = useState(false);
-  const [errorPop, setErrorPop] = useState(null); // Gender conflict message
+
+  const [isCheckout, setIsCheckout] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [errorPop, setErrorPop] = useState(null);
+
+  // Card Form states
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvv, setCvv] = useState('');
+
+  // Audio optimization: persistent instance
+  const audioRef = useRef(null);
+  useEffect(() => {
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audioRef.current.volume = 0.25;
+    audioRef.current.preload = 'auto'; // Preload for better performance
+  }, []);
+
+  const inputStyle = {
+    width: '100%', background: 'rgba(0,0,0,0.3)', border: `1px solid ${T.border}`,
+    color: '#fff', fontSize: 13, padding: '12px 14px', borderRadius: 10,
+    fontFamily: 'DM Sans, sans-serif', outline: 'none', transition: 'border-color 0.2s',
+  };
 
   /* ── AUDIO LOGIC ── */
   const playSelectSound = useCallback(() => {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    audio.volume = 0.25;
-    audio.play().catch(() => {});
+    if (audioRef.current) {
+        audioRef.current.currentTime = 0; // Reset to start
+        audioRef.current.play().catch(() => {});
+    }
   }, []);
 
   /* ── Seat loader (API + fallback + 10s timeout) ── */
@@ -1177,17 +1203,58 @@ const SeatSelection = () => {
     lockCall();
   };
 
-  /* ── Continue → payment ── */
+  /* ── Payment Logic ── */
+  const handlePayment = async (e) => {
+    if (e) e.preventDefault();
+    if (paymentMethod === 'card' && (!cardName || !cardNumber || !expiry || !cvv)) {
+        setErrorPop("Please fill all card details correctly.");
+        return;
+    }
+    
+    setPaymentLoading(true);
+    setErrorPop(null);
+
+    // Simulate payment delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const payload = {
+          route_id: busData.id,
+          seats: selectedSeats.map(id => ({ seat_id: id, gender: seatGenders[id] === 'male' ? 'Male' : 'Female' }))
+      };
+
+      const res = await fetch('/api/booking/book.php', {
+          method: 'POST',
+          headers: { 
+              'Content-Type': 'application/json',
+              ...(token ? {'Authorization': `Bearer ${token}`} : {})
+          },
+          body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      
+      if (res.ok && json.status === 'success') {
+          setPaymentSuccess(true);
+          setTimeout(() => {
+              navigate('/'); // Return to home
+          }, 3500);
+      } else {
+          setErrorPop(json.message || "Booking failed.");
+          setPaymentLoading(false);
+      }
+    } catch (error) {
+      setErrorPop("Network error during payment processing.");
+      setPaymentLoading(false);
+    }
+  };
+
+  /* ── Continue → payment view ── */
   const handleContinue = () => {
-    navigate('/payment', {
-      state: { 
-        trip: tripData, 
-        bus: busData, 
-        selectedSeats, 
-        seatGenders,
-        totalPrice: selectedSeats.length * busData.price 
-      },
-    });
+    setIsCheckout(true);
+    // Smooth scroll to selection section
+    const el = document.getElementById('seat-section');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   const availCount = seats.filter((s) => s.status === 'available').length;
@@ -1212,6 +1279,8 @@ const SeatSelection = () => {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
+        
+        input::placeholder { color: rgba(255,255,255,0.2); }
       `}</style>
 
       <CursorGlow />
@@ -1348,7 +1417,7 @@ const SeatSelection = () => {
             {/* Back nav + step indicator */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, animation: 'fadeUp 0.4s ease forwards', opacity: 0 }}>
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => isCheckout ? setIsCheckout(false) : navigate(-1)}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   color: 'rgba(255,255,255,0.45)', background: 'none', border: 'none',
@@ -1361,10 +1430,10 @@ const SeatSelection = () => {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                   <path d="M19 12H5M12 19l-7-7 7-7" />
                 </svg>
-                Back to results
+                {isCheckout ? 'Back to Selection' : 'Back to results'}
               </button>
               <div style={{ flex: 1 }} />
-              {timerActive && selectedSeats.length > 0 && (
+              {timerActive && selectedSeats.length > 0 && !paymentSuccess && (
                 <div style={{
                   background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444',
                   padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, fontFamily: 'monospace',
@@ -1374,7 +1443,7 @@ const SeatSelection = () => {
                 </div>
               )}
               <div style={{ fontSize: 12, color: T.muted }}>
-                <span style={{ color: T.accent, fontWeight: 700 }}>Step 2</span> of 3 — Select Seats
+                <span style={{ color: T.accent, fontWeight: 700 }}>Step {isCheckout ? '3' : '2'}</span> of 3 — {isCheckout ? 'Secure Payment' : 'Select Seats'}
               </div>
             </div>
 
@@ -1387,13 +1456,13 @@ const SeatSelection = () => {
                 background: 'linear-gradient(135deg, #fff 0%, #8896b0 100%)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>
-                Choose Your Seats
+                {isCheckout ? 'Secure Checkout' : 'Choose Your Seats'}
               </h1>
-              {!isLoading && (
+              {!isLoading && !isCheckout && (
                 <span style={{ fontSize: 13, color: T.muted }}>{availCount} available</span>
               )}
               {/* View toggle */}
-              {!isLoading && !isMobile && (
+              {!isLoading && !isMobile && !isCheckout && (
                 <button
                   onClick={() => setViewMode((v) => (v === '3d' ? '2d' : '3d'))}
                   style={{
@@ -1444,8 +1513,125 @@ const SeatSelection = () => {
                 />
               )}
 
+              {/* Payment Success View */}
+              {paymentSuccess && (
+                 <div style={{ 
+                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+                   height: '100%', gap: 20, padding: 40, textAlign: 'center', animation: 'fadeUp 0.5s ease' 
+                 }}>
+                    <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(74,222,128,0.1)', border: '2px solid #4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </div>
+                    <h2 style={{ color: '#fff', fontSize: 28, fontFamily: 'Syne, sans-serif' }}>Payment Successful!</h2>
+                    <p style={{ color: T.muted, fontSize: 16 }}>Your seats have been successfully reserved and tickets are booked.</p>
+                    <div style={{ marginTop: 10, color: T.accent, fontSize: 14 }}>Redirecting to home...</div>
+                 </div>
+              )}
+
+              {/* Payment Form View */}
+              {isCheckout && !paymentSuccess && (
+                <div style={{ 
+                  height: '100%', overflowY: 'auto', padding: '24px', 
+                  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24,
+                  animation: 'fadeUp 0.4s ease'
+                }}>
+                  {/* Left: Methods */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <h3 style={{ fontSize: 16, fontFamily: 'Syne, sans-serif' }}>Payment Method</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      {[
+                        { id: 'card', label: 'Credit Card', icon: '💳' },
+                        { id: 'easypaisa', label: 'EasyPaisa', icon: '📱' },
+                        { id: 'jazzcash', label: 'JazzCash', icon: '💸' },
+                        { id: 'bank', label: 'Bank Transfer', icon: '🏦' },
+                      ].map(m => (
+                        <div 
+                          key={m.id}
+                          onClick={() => setPaymentMethod(m.id)}
+                          style={{
+                            padding: '14px', borderRadius: 12, border: `1px solid ${paymentMethod === m.id ? T.accent : T.border}`,
+                            background: paymentMethod === m.id ? 'rgba(245,200,66,0.05)' : 'rgba(255,255,255,0.03)',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s'
+                          }}
+                        >
+                          <span style={{ fontSize: 18 }}>{m.icon}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: paymentMethod === m.id ? T.accent : T.muted }}>{m.label}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {paymentMethod === 'card' ? (
+                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <input type="text" placeholder="Cardholder Name (e.g. Test User)" value={cardName} onChange={e => setCardName(e.target.value)} style={inputStyle} />
+                          <input type="text" placeholder="Card Number (e.g. 4242 4242 4242 4242)" value={cardNumber} onChange={e => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                val = val.replace(/(\d{4})/g, '$1 ').trim();
+                                setCardNumber(val);
+                          }} style={inputStyle} />
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                             <input type="text" placeholder="MM/YY (e.g. 12/26)" maxLength="5" value={expiry} onChange={e => {
+                                let val = e.target.value.replace(/\D/g, '');
+                                if(val.length > 2) val = val.substring(0,2) + '/' + val.substring(2,4);
+                                setExpiry(val);
+                             }} style={inputStyle} />
+                             <input type="password" placeholder="CVV (e.g. 123)" maxLength="4" value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, ''))} style={inputStyle} />
+                          </div>
+                       </div>
+                    ) : (
+                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: `1px dashed ${T.border}` }}>
+                             <p style={{ color: T.muted, fontSize: 11, marginBottom: 12, textAlign: 'center' }}>
+                                Enter your {paymentMethod} account details to proceed.
+                             </p>
+                             <input 
+                                type="text" 
+                                placeholder={paymentMethod === 'bank' ? "IBAN (e.g. PK74 ALRD...)" : "Mobile Number (e.g. 0300 1234567)"} 
+                                style={inputStyle} 
+                             />
+                          </div>
+                       </div>
+                    )}
+                  </div>
+
+                  {/* Right: Summary */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <h3 style={{ fontSize: 16, fontFamily: 'Syne, sans-serif' }}>Summary</h3>
+                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 16, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                           <span style={{ color: T.muted }}>Seats Selected</span>
+                           <span style={{ color: '#fff' }}>{selectedSeats.length}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                           <span style={{ color: T.muted }}>Base Fare</span>
+                           <span style={{ color: '#fff' }}>PKR {(selectedSeats.length * busData.price).toLocaleString()}</span>
+                        </div>
+                        <div style={{ height: 1, background: T.border, margin: '8px 0' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <span style={{ fontWeight: 700 }}>Total</span>
+                           <span style={{ fontSize: 20, fontWeight: 800, color: T.accent, fontFamily: 'Syne, sans-serif' }}>
+                             PKR {(selectedSeats.length * busData.price).toLocaleString()}
+                           </span>
+                        </div>
+                    </div>
+                    <button 
+                      onClick={handlePayment}
+                      disabled={paymentLoading}
+                      style={{
+                        width: '100%', background: paymentLoading ? 'rgba(245,200,66,0.5)' : T.accent, 
+                        color: '#080c1f', border: 'none', padding: '14px', borderRadius: 12,
+                        fontSize: 15, fontWeight: 800, fontFamily: 'Syne, sans-serif', cursor: paymentLoading ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 8px 25px rgba(245,200,66,0.25)', transition: 'all 0.2s'
+                      }}
+                    >
+                      {paymentLoading ? 'Processing...' : 'Pay Now'}
+                    </button>
+                    <div style={{ fontSize: 10, color: T.muted, textAlign: 'center' }}>🔒 Secured SSL Encryption</div>
+                  </div>
+                </div>
+              )}
+
               {/* 3D interior */}
-              {!isLoading && viewMode === '3d' && !isMobile && (
+              {!isLoading && viewMode === '3d' && !isMobile && !isCheckout && (
                 <>
                   <BusInterior3D
                     seats={seats}
@@ -1470,13 +1656,15 @@ const SeatSelection = () => {
             </div>
 
             {/* Legend bar */}
-            <LegendBar
-              seats={seats}
-              selectedSeats={selectedSeats}
-              price={busData.price}
-              gender={tripData.gender}
-              onContinue={handleContinue}
-            />
+            {!isCheckout && (
+              <LegendBar
+                seats={seats}
+                selectedSeats={selectedSeats}
+                price={busData.price}
+                gender={tripData.gender}
+                onContinue={handleContinue}
+              />
+            )}
           </div>
 
           {/* ════ RIGHT COLUMN — info sidebar ════ */}

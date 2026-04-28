@@ -46,7 +46,7 @@ try {
         LEFT JOIN booking b
             ON s.seat_id     = b.seat_id
             AND b.route_id   = r.route_id
-            AND b.booking_status = 'confirmed'
+            AND b.booking_status IN ('confirmed', 'pending')
         LEFT JOIN seat_locks l
             ON s.seat_id     = l.seat_id
             AND l.route_id   = r.route_id
