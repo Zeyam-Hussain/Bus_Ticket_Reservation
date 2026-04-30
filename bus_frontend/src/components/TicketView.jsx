@@ -33,14 +33,14 @@ const TicketView = ({ ticket }) => {
   const destCode = (destination_city || 'DST').substring(0, 3).toUpperCase();
 
   return (
-    <div className="flex flex-col md:flex-row w-full max-w-[900px] mx-auto rounded-2xl overflow-hidden shadow-2xl relative font-sans" style={{ isolation: 'isolate' }}>
+    <div className="flex flex-col md:flex-row w-full max-w-[900px] mx-auto rounded-2xl overflow-hidden shadow-2xl relative font-sans">
       
       {/* LEFT SIDE (Dark Blue) */}
       <div className="relative flex-1 bg-[#050B14] text-white p-6 md:p-10 flex flex-col justify-between overflow-hidden min-h-[300px]">
-        {/* World Map Background (SVG Pattern) */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10 Q 50 10 50 50 T 90 90' stroke='white' fill='none' stroke-width='2' opacity='0.5'/%3E%3Ccircle cx='20' cy='30' r='2' fill='white'/%3E%3Ccircle cx='80' cy='60' r='3' fill='white'/%3E%3C/svg%3E")`,
-            backgroundSize: 'cover'
+        {/* Simple CSS Pattern instead of SVG Data URL for better capture stability */}
+        <div className="absolute inset-0 opacity-5 pointer-events-none" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+            backgroundSize: '40px 40px'
         }}></div>
 
         {/* Top Row */}
@@ -112,9 +112,9 @@ const TicketView = ({ ticket }) => {
                 <p className="text-base font-bold">{name}</p>
             </div>
             <div className="text-right">
-                <p className="text-[14px] font-black uppercase tracking-wider">{source_city}</p>
-                <Plane className="w-5 h-5 ml-auto my-1 transform rotate-45" />
-                <p className="text-[14px] font-black uppercase tracking-wider">{destination_city}</p>
+                <p className="text-[14px] font-black uppercase tracking-wider" style={{ color: '#050B14' }}>{source_city}</p>
+                <Plane className="w-5 h-5 ml-auto my-1 transform rotate-45" style={{ color: '#050B14' }} />
+                <p className="text-[14px] font-black uppercase tracking-wider" style={{ color: '#050B14' }}>{destination_city}</p>
             </div>
         </div>
 

@@ -26,6 +26,7 @@ try {
             b.booking_date,
             b.booking_status,
             b.passenger_gender,
+            u.full_name AS passenger_name,
             s.seat_number,
             r.source_city,
             r.destination_city,
@@ -38,6 +39,7 @@ try {
             p.payment_method,
             p.transaction_status
         FROM booking b
+        INNER JOIN users u  ON b.user_id = u.user_id
         INNER JOIN route r  ON b.route_id = r.route_id
         INNER JOIN bus bs   ON r.bus_id   = bs.bus_id
         INNER JOIN seat s   ON b.seat_id  = s.seat_id

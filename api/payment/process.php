@@ -14,6 +14,78 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once '../../vendor/autoload.php';
+
+function sendBookingConfirmationEmail($toEmail, $toName, $bookingData) {
+    $mail = new PHPMailer(true);
+    
+    $host = $_ENV['SMTP_HOST'] ?? '';
+    $port = $_ENV['SMTP_PORT'] ?? 587;
+    $user = $_ENV['SMTP_USER'] ?? '';
+    $pass = $_ENV['SMTP_PASS'] ?? '';
+    $from = $_ENV['SMTP_FROM'] ?? '';
+    $name = $_ENV['SMTP_FROM_NAME'] ?? 'Bus Reservation System';
+
+    if (empty($host) || empty($user) || empty($from)) {
+        return false; // Skip if no SMTP config
+    }
+
+    try {
+        $mail->isSMTP();
+        $mail->Host       = $host;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $user;
+        $mail->Password   = $pass;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = (int)$port;
+
+        $mail->setFrom($from, $name);
+        $mail->addAddress($toEmail, $toName);
+
+        $mail->isHTML(true);
+        $mail->Subject = 'Booking Confirmation - Ticket #' . $bookingData['booking_id'];
+        $mail->Body    = "
+            <div style='font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px; max-width: 600px;'>
+                <h2 style='color: #28a745;'>Payment Successful!</h2>
+                <p>Dear {$toName},</p>
+                <p>Your booking has been confirmed. Below are your travel details:</p>
+                <table style='width: 100%; border-collapse: collapse; margin-top: 20px;'>
+                    <tr>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;'>Booking ID:</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee;'>#{$bookingData['booking_id']}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;'>Route:</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee;'>{$bookingData['source_city']} to {$bookingData['destination_city']}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;'>Departure:</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee;'>{$bookingData['departure_time']}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;'>Seat:</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee;'>{$bookingData['seat_number']}</td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;'>Amount Paid:</td>
+                        <td style='padding: 8px; border-bottom: 1px solid #eee;'>PKR {$bookingData['total_amount']}</td>
+                    </tr>
+                </table>
+                <p style='margin-top: 20px;'>Wish you a safe and pleasant journey!</p>
+                <p style='font-size: 12px; color: #777;'>This is an automated email. Please do not reply.</p>
+            </div>";
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("Email send error: " . $e->getMessage());
+        return false;
+    }
+}
+
 $database = new Database();
 $db = $database->getConnection();
 $data = json_decode(file_get_contents("php://input"));
@@ -44,10 +116,16 @@ try {
     $db->beginTransaction();
 
     // FIX: Verify booking exists AND belongs to the logged-in user
+    // Enhanced query to get email and name for confirmation email
     $check = $db->prepare("
-        SELECT b.booking_status, b.user_id, r.base_fare
+        SELECT b.booking_status, b.user_id, b.booking_id,
+               u.email, u.full_name,
+               r.source_city, r.destination_city, r.departure_time,
+               s.seat_number
         FROM booking b
+        JOIN users u ON b.user_id = u.user_id
         JOIN route r ON b.route_id = r.route_id
+        JOIN seat s ON b.seat_id = s.seat_id
         WHERE b.booking_id = :booking_id
         LIMIT 1
     ");
@@ -98,6 +176,10 @@ try {
     $update->execute();
 
     $db->commit();
+
+    // 3. Send confirmation email
+    $booking['total_amount'] = $data->total_amount;
+    sendBookingConfirmationEmail($booking['email'], $booking['full_name'], $booking);
 
     http_response_code(201);
     echo json_encode(["status" => "success", "message" => "Payment processed successfully."]);

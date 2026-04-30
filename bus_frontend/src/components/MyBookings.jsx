@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Ticket, Calendar, MapPin, Clock, CreditCard, User, Tag, Eye } from 'lucide-react';
+import { Ticket, Calendar, MapPin, Clock, CreditCard, User, Tag, Eye, Download } from 'lucide-react';
 import TicketView from './TicketView';
+import { useTicketDownload } from '../hooks/useTicketDownload';
 
 export default function MyBookings() {
     const [bookings, setBookings] = useState([]);
@@ -9,7 +10,13 @@ export default function MyBookings() {
     const [error, setError] = useState(null);
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [isCancelling, setIsCancelling] = useState(false);
+    const ticketRef = useRef(null);
     const navigate = useNavigate();
+
+    const { downloadTicket: downloadTicketAsPDF, isDownloading } = useTicketDownload(
+        ticketRef, 
+        `ticket-${selectedTicket?.booking_id || 'download'}`
+    );
 
     useEffect(() => {
         fetchBookings();
@@ -52,6 +59,8 @@ export default function MyBookings() {
             setLoading(false);
         }
     };
+
+
 
     const handleCancelBooking = async (bookingId) => {
         if (!window.confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
@@ -221,26 +230,28 @@ export default function MyBookings() {
             {selectedTicket && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" style={{ zIndex: 9999 }}>
                     <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <button 
-                            onClick={() => setSelectedTicket(null)}
-                            className="absolute -top-12 right-0 md:-right-12 text-white/70 hover:text-white transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                        
-                        <button 
-                            onClick={() => window.print()}
-                            className="absolute -top-12 left-0 text-white/70 hover:text-white transition-colors flex items-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            <span>Download Ticket</span>
-                        </button>
+                        {/* Controls container */}
+                        <div className="flex items-center justify-between mb-4 px-2">
+                            <button 
+                                onClick={downloadTicketAsPDF}
+                                disabled={isDownloading}
+                                className="text-white/70 hover:text-white transition-colors flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md border border-white/10 disabled:opacity-50 disabled:cursor-wait"
+                            >
+                                <Download className="h-5 w-5" />
+                                <span>{isDownloading ? 'Generating PDF...' : 'Download PDF'}</span>
+                            </button>
 
-                        <div className="animate-in fade-in zoom-in duration-300">
+                            <button 
+                                onClick={() => setSelectedTicket(null)}
+                                className="text-white/70 hover:text-white transition-colors p-2 bg-white/10 rounded-full backdrop-blur-md border border-white/10"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div ref={ticketRef} className="animate-in fade-in zoom-in duration-300">
                             <TicketView ticket={selectedTicket} />
                         </div>
                     </div>

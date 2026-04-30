@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import UserProfile from "./UserProfile";
 import TicketView from "./TicketView";
+import { useTicketDownload } from "../hooks/useTicketDownload";
 import "./Index.css";
 
 /* ─── embedded bus images ─────────────────────────────────────────── */
@@ -43,15 +44,21 @@ export default function Home() {
     const navigate = useNavigate();
     useReveal();
 
+    const [availableTickets, setAvailableTickets] = useState([]);
+    const [currentTicketIndex, setCurrentTicketIndex] = useState(0);
+
+    const ticketRef = useRef(null);
+    const { downloadTicket, isDownloading } = useTicketDownload(ticketRef, `bus-ticket-${ticketData?.booking_id || 'download'}`);
+
     // Check for ticket_ready parameter
     useEffect(() => {
         const ticketReadyId = searchParams.get('ticket_ready');
         if (ticketReadyId) {
-            fetchTicketData(ticketReadyId);
+            fetchTicketData(ticketReadyId.split(','));
         }
     }, [searchParams]);
 
-    const fetchTicketData = async (bookingId) => {
+    const fetchTicketData = async (bookingIds) => {
         setTicketLoading(true);
         setShowTicketModal(true);
         try {
@@ -64,15 +71,30 @@ export default function Home() {
             });
             const data = await response.json();
             if (data.status === 'success' && data.data && data.data.length > 0) {
-                // Find the specific ticket or default to the most recent if not found
-                const specificTicket = data.data.find(t => t.booking_id == bookingId) || data.data[0];
-                setTicketData(specificTicket);
+                // Filter the tickets that match the requested booking IDs
+                const matchedTickets = data.data.filter(t => bookingIds.includes(t.booking_id.toString()));
+                
+                if (matchedTickets.length > 0) {
+                    setAvailableTickets(matchedTickets);
+                    setTicketData(matchedTickets[0]);
+                    setCurrentTicketIndex(0);
+                } else {
+                    // If specific IDs not found, show the most recent one as fallback
+                    setAvailableTickets([data.data[0]]);
+                    setTicketData(data.data[0]);
+                    setCurrentTicketIndex(0);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch ticket data:", error);
         } finally {
             setTicketLoading(false);
         }
+    };
+
+    const handleTicketChange = (index) => {
+        setCurrentTicketIndex(index);
+        setTicketData(availableTickets[index]);
     };
 
     const closeTicketModal = () => {
@@ -481,17 +503,46 @@ export default function Home() {
                             </svg>
                         </button>
                         
-                        {/* Download button */}
+                        {/* Download and Selection dropdown */}
                         {!ticketLoading && ticketData && (
-                            <button 
-                                onClick={() => window.print()}
-                                className="absolute -top-12 left-0 text-white/70 hover:text-white transition-colors flex items-center gap-2"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                <span>Download Ticket</span>
-                            </button>
+                            <div className="absolute -top-14 left-0 flex items-center gap-4 w-full">
+                                <button 
+                                    onClick={downloadTicket}
+                                    disabled={isDownloading}
+                                    className="text-white/70 hover:text-white transition-colors flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isDownloading ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/50 border-t-transparent rounded-full animate-spin"></div>
+                                            <span>Generating PDF...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                            <span>Download PDF</span>
+                                        </>
+                                    )}
+                                </button>
+
+                                {availableTickets.length > 1 && (
+                                    <div className="flex items-center gap-2 bg-white/10 px-3 py-2 rounded-lg backdrop-blur-md border border-white/10 ml-auto">
+                                        <span className="text-white/50 text-xs uppercase tracking-widest font-bold">Select Ticket:</span>
+                                        <select 
+                                            value={currentTicketIndex}
+                                            onChange={(e) => handleTicketChange(parseInt(e.target.value))}
+                                            className="bg-transparent text-white border-none outline-none cursor-pointer font-bold text-sm"
+                                        >
+                                            {availableTickets.map((t, idx) => (
+                                                <option key={t.booking_id} value={idx} className="bg-[#050B14] text-white">
+                                                    Seat {t.seat_number} (#{t.booking_id})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         <div className="animate-in fade-in zoom-in duration-300">
@@ -505,7 +556,9 @@ export default function Home() {
                                     <div className="bg-green-500/20 border border-green-500/50 text-green-400 p-3 rounded-lg mb-6 text-center font-medium shadow-lg backdrop-blur-sm">
                                         Payment Successful! Your ticket is ready.
                                     </div>
-                                    <TicketView ticket={ticketData} />
+                                    <div ref={ticketRef}>
+                                        <TicketView ticket={ticketData} />
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-64 bg-[#050B14] rounded-2xl border border-white/10 shadow-2xl">
