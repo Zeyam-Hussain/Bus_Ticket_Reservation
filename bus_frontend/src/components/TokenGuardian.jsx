@@ -53,21 +53,48 @@ const TokenGuardian = () => {
     };
 
     // 2. Periodic check for token expiration (even if no API calls are made)
+    let isRefreshing = false;
+    
     const checkTokenExpiration = () => {
+      if (isRefreshing) return;
+      
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
           const parts = token.split('.');
           if (parts.length === 3) {
             const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-            const buffer = 10; // 10 second buffer
+            const buffer = 60; // Try to refresh 60 seconds before expiration
             if (payload.exp && (payload.exp - buffer) < Date.now() / 1000) {
-              handleLogout();
+              const refreshToken = localStorage.getItem('refresh_token');
+              if (refreshToken) {
+                isRefreshing = true;
+                originalFetch('/api/user/refresh_token.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ refresh_token: refreshToken })
+                })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.status === 'success' && data.access_token) {
+                    localStorage.setItem('access_token', data.access_token);
+                    // Also update refresh_token if it was rotated
+                    if (data.refresh_token) {
+                      localStorage.setItem('refresh_token', data.refresh_token);
+                    }
+                  } else {
+                    handleLogout();
+                  }
+                })
+                .catch(() => handleLogout())
+                .finally(() => { isRefreshing = false; });
+              } else {
+                handleLogout();
+              }
             }
           }
         } catch (err) {
           console.error("Token decoding failed", err);
-          // If token is malformed, we might as well logout
         }
       }
     };

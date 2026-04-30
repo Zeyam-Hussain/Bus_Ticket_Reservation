@@ -124,7 +124,12 @@ try {
     if ($stmt->execute()) {
         sendOtpEmail($email, $existingUser['full_name'], $otpCode);
         http_response_code(200);
-        echo json_encode(["status" => "success", "message" => "A new OTP has been sent to your email."]);
+        $response = ["status" => "success", "message" => "A new OTP has been sent to your email."];
+        // Only expose OTP in response during development
+        if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
+            $response['data'] = ['otp_debug' => $otpCode];
+        }
+        echo json_encode($response);
     } else {
         throw new Exception("Failed to update database.");
     }

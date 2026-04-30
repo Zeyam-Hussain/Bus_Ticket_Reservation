@@ -10,6 +10,11 @@ import BookResult from './components/BookResult';
 import SeatSelection from './components/SeatSelection';
 import Payment from './components/Payment';
 import TokenGuardian from './components/TokenGuardian';
+import Dashboard from './components/Dashboard';
+import AdminLogin from './components/AdminLogin';
+import AdminRegister from './components/AdminRegister';
+import MyBookings from './components/MyBookings';
+
 
 function App() {
   return (
@@ -25,6 +30,10 @@ function App() {
         <Route path="/book-result" element={<BookResult />} />
         <Route path="/seat-selection" element={<SeatSelection />} />
         <Route path="/payment" element={<Payment />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin-auth" element={<AdminLogin />} />
+        <Route path="/admin-auth-register" element={<AdminRegister />} />
+        <Route path="/my-bookings" element={<MyBookings />} />
       </Routes>
     </BrowserRouter>
   );

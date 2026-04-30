@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import UserProfile from "./UserProfile";
+import TicketView from "./TicketView";
 import "./Index.css";
 
 /* ─── embedded bus images ─────────────────────────────────────────── */
@@ -33,10 +34,53 @@ function useReveal() {
 export default function Home() {
     const [scrolled, setScrolled] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [ticketData, setTicketData] = useState(null);
+    const [showTicketModal, setShowTicketModal] = useState(false);
+    const [ticketLoading, setTicketLoading] = useState(false);
     const heroTextRef = useRef(null);
     const busImgRef = useRef(null);
     const navigate = useNavigate();
     useReveal();
+
+    // Check for ticket_ready parameter
+    useEffect(() => {
+        const ticketReadyId = searchParams.get('ticket_ready');
+        if (ticketReadyId) {
+            fetchTicketData(ticketReadyId);
+        }
+    }, [searchParams]);
+
+    const fetchTicketData = async (bookingId) => {
+        setTicketLoading(true);
+        setShowTicketModal(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const response = await fetch('/api/booking/ticket.php', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (data.status === 'success' && data.data && data.data.length > 0) {
+                // Find the specific ticket or default to the most recent if not found
+                const specificTicket = data.data.find(t => t.booking_id == bookingId) || data.data[0];
+                setTicketData(specificTicket);
+            }
+        } catch (error) {
+            console.error("Failed to fetch ticket data:", error);
+        } finally {
+            setTicketLoading(false);
+        }
+    };
+
+    const closeTicketModal = () => {
+        setShowTicketModal(false);
+        // Remove ticket_ready from URL
+        searchParams.delete('ticket_ready');
+        setSearchParams(searchParams);
+    };
 
     const handleBookingRedirect = (e) => {
         e?.preventDefault();
@@ -422,6 +466,62 @@ export default function Home() {
                     </div>
                 </div>
             </footer>
+
+            {/* ── TICKET MODAL ── */}
+            {showTicketModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" style={{ zIndex: 9999 }}>
+                    <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                        {/* Close button */}
+                        <button 
+                            onClick={closeTicketModal}
+                            className="absolute -top-12 right-0 md:-right-12 text-white/70 hover:text-white transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        
+                        {/* Download button */}
+                        {!ticketLoading && ticketData && (
+                            <button 
+                                onClick={() => window.print()}
+                                className="absolute -top-12 left-0 text-white/70 hover:text-white transition-colors flex items-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>Download Ticket</span>
+                            </button>
+                        )}
+
+                        <div className="animate-in fade-in zoom-in duration-300">
+                            {ticketLoading ? (
+                                <div className="flex flex-col items-center justify-center h-64 bg-[#050B14] rounded-2xl border border-white/10 shadow-2xl">
+                                    <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                    <p className="text-white/70 tracking-widest uppercase text-sm">Generating Ticket...</p>
+                                </div>
+                            ) : ticketData ? (
+                                <div>
+                                    <div className="bg-green-500/20 border border-green-500/50 text-green-400 p-3 rounded-lg mb-6 text-center font-medium shadow-lg backdrop-blur-sm">
+                                        Payment Successful! Your ticket is ready.
+                                    </div>
+                                    <TicketView ticket={ticketData} />
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-64 bg-[#050B14] rounded-2xl border border-white/10 shadow-2xl">
+                                    <div className="text-red-500 mb-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-white tracking-widest text-lg">Ticket Not Found</p>
+                                    <p className="text-white/50 text-sm mt-2">Could not retrieve booking information.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1235,6 +1235,23 @@ const SeatSelection = () => {
       const json = await res.json();
       
       if (res.ok && json.status === 'success') {
+          // Process payment for the newly created booking(s)
+          const bIds = json.booking_ids || [];
+          for (let bId of bIds) {
+              await fetch('/api/payment/process.php', {
+                  method: 'POST',
+                  headers: { 
+                      'Content-Type': 'application/json',
+                      ...(token ? {'Authorization': `Bearer ${token}`} : {})
+                  },
+                  body: JSON.stringify({
+                      booking_id: bId,
+                      total_amount: busData.price,
+                      payment_method: paymentMethod
+                  })
+              }).catch(err => console.error("Payment Error:", err));
+          }
+
           setPaymentSuccess(true);
           setTimeout(() => {
               navigate('/'); // Return to home
@@ -1281,6 +1298,14 @@ const SeatSelection = () => {
         ::-webkit-scrollbar-track { background: transparent; }
         
         input::placeholder { color: rgba(255,255,255,0.2); }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 30px #0a0e27 inset !important;
+            -webkit-text-fill-color: white !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
       `}</style>
 
       <CursorGlow />

@@ -166,7 +166,12 @@ try {
     if ($stmt->execute()) {
         sendOtpEmail($email, $fullNameSafe, $otpCode);
         http_response_code(201);
-        echo json_encode(["status" => "success", "message" => "Registration successful. Please check your email for the OTP.", "data" => ["email" => $email]]);
+        $response = ["status" => "success", "message" => "Registration successful. Please check your email for the OTP.", "data" => ["email" => $email]];
+        // Only expose OTP in response during development
+        if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
+            $response['data']['otp_debug'] = $otpCode;
+        }
+        echo json_encode($response);
     }
 
 } catch (Throwable $e) {

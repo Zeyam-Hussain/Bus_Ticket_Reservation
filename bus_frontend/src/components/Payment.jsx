@@ -114,7 +114,7 @@ const Payment = () => {
           } else {
               // ✅ All payments written to DB, bookings are now 'confirmed'
               setSuccess(true);
-              setTimeout(() => navigate('/'), 3000);
+              setTimeout(() => navigate(`/?ticket_ready=${bookingIds.join(',')}`), 3000);
           }
       } else {
           setErrorPop(json.message || 'Booking failed. Please try again.');

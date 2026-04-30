@@ -6,6 +6,7 @@ const VerifyEmail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const email = location.state?.email || '';
+  const isAdmin = location.state?.isAdmin || false;
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
@@ -86,8 +87,12 @@ const VerifyEmail = () => {
       }
 
       if (data.status === 'success') {
-        // Redirect to login after successful verification
-        navigate('/login', { state: { message: 'Verification successful! You can now log in.' } });
+        // Redirect to appropriate login after successful verification
+        if (isAdmin) {
+            navigate('/admin-auth', { state: { message: 'Verification successful! You can now log in.' } });
+        } else {
+            navigate('/login', { state: { message: 'Verification successful! You can now log in.' } });
+        }
       } else {
         throw new Error(data.message || 'Invalid OTP.');
       }
@@ -196,7 +201,7 @@ const VerifyEmail = () => {
             `}</style>
 
             {/* Back link */}
-            <Link to="/register" className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline mb-8 transition-colors">
+            <Link to={isAdmin ? "/admin-auth-register" : "/register"} className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline mb-8 transition-colors">
                <ArrowLeft className="w-4 h-4" /> Back to Sign Up
             </Link>
 

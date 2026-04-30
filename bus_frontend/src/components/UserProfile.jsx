@@ -95,7 +95,7 @@ const UserProfile = () => {
                         {user ? (
                             <>
                                 <div className="px-3">
-                                    <div className="flex items-center justify-between bg-[#121A37] p-4 rounded-2xl mb-3 border border-blue-900/30 hover:border-blue-700/50 transition-colors cursor-pointer group">
+                                    <Link to="/my-bookings" onClick={() => setIsOpen(false)} className="flex items-center justify-between bg-[#121A37] p-4 rounded-2xl mb-3 border border-blue-900/30 hover:border-blue-700/50 transition-colors cursor-pointer group">
                                         <div className="flex items-center gap-3">
                                             <div className="bg-blue-500/20 p-2.5 rounded-xl group-hover:bg-blue-500/30 transition-colors">
                                                 <Ticket className="w-5 h-5 text-blue-400" />
@@ -105,8 +105,7 @@ const UserProfile = () => {
                                                 <p className="text-gray-400 text-xs font-medium">History & details</p>
                                             </div>
                                         </div>
-                                        <span className="bg-blue-600/90 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">0 Active</span>
-                                    </div>
+                                    </Link>
                                     
                                     <Link to="/account-settings" onClick={() => setIsOpen(false)} className="w-full flex items-center gap-3 p-3 text-gray-300 hover:text-white hover:bg-[#121A37] rounded-xl transition-all mb-1 text-left group">
                                         <Settings className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />

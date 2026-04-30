@@ -38,10 +38,13 @@ try {
             s.seat_number,
             p.total_amount,
             p.payment_method,
-            p.transaction_status
+            p.transaction_status,
+            bs.bus_type,
+            bs.registration_number
         FROM booking b
         LEFT JOIN payment p ON b.booking_id = p.booking_id
         LEFT JOIN route r   ON b.route_id   = r.route_id
+        LEFT JOIN bus bs    ON r.bus_id     = bs.bus_id
         LEFT JOIN seat s    ON b.seat_id     = s.seat_id
         WHERE b.user_id = :user_id
         ORDER BY b.booking_id DESC
