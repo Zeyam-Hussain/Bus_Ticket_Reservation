@@ -47,6 +47,13 @@ export default function Home() {
     const [availableTickets, setAvailableTickets] = useState([]);
     const [currentTicketIndex, setCurrentTicketIndex] = useState(0);
 
+    const [popularRoutes, setPopularRoutes] = useState([
+        { from: "Lahore", to: "Karachi", time: "~14 hrs", price: "PKR 3,500" },
+        { from: "Islamabad", to: "Lahore", time: "~4 hrs", price: "PKR 900" },
+        { from: "Peshawar", to: "Islamabad", time: "~2 hrs", price: "PKR 600" },
+        { from: "Karachi", to: "Peshawar", time: "~22 hrs", price: "PKR 5,000" },
+    ]);
+
     const ticketRef = useRef(null);
     const { downloadTicket, isDownloading } = useTicketDownload(ticketRef, `bus-ticket-${ticketData?.booking_id || 'download'}`);
 
@@ -139,6 +146,25 @@ export default function Home() {
         };
         window.addEventListener("scroll", onScroll, { passive: true });
         return () => window.removeEventListener("scroll", onScroll);
+    }, []);
+
+    /* fetch route prices */
+    useEffect(() => {
+        const fetchPrices = async () => {
+            try {
+                const response = await fetch('/api/route/get_prices.php');
+                const data = await response.json();
+                if (data.status === 'success') {
+                    setPopularRoutes(prev => prev.map(route => {
+                        const dynamic = data.data.find(d => d.from === route.from && d.to === route.to);
+                        return dynamic ? { ...route, price: dynamic.price } : route;
+                    }));
+                }
+            } catch (error) {
+                console.error("Failed to fetch route prices:", error);
+            }
+        };
+        fetchPrices();
     }, []);
 
     return (
@@ -348,12 +374,7 @@ export default function Home() {
                     <p className="ar-sec-desc">Seamless intercity connections between Pakistan&apos;s most important urban centres.</p>
                 </div>
                 <div className="ar-routes-grid">
-                    {[
-                        { from: "Lahore", to: "Karachi", time: "~14 hrs", price: "PKR 3,500" },
-                        { from: "Islamabad", to: "Lahore", time: "~4 hrs", price: "PKR 900" },
-                        { from: "Peshawar", to: "Islamabad", time: "~2 hrs", price: "PKR 600" },
-                        { from: "Karachi", to: "Peshawar", time: "~22 hrs", price: "PKR 5,000" },
-                    ].map((r) => (
+                    {popularRoutes.map((r) => (
                         <div key={r.from + r.to} className="ar-route-card reveal">
                             <div>
                                 <div className="ar-route-city">{r.from} → {r.to}</div>
