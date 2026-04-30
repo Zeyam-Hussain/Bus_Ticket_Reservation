@@ -69,7 +69,7 @@ try {
         $booking_ids = array_merge($booking_ids, $route_booking_ids);
     }
     
-    // Now delete in correct order: Payments -> Bookings -> Routes -> Seats -> Buses
+    // Delete in order: Payments -> Bookings -> Routes -> Seats -> Buses
     
     if (!empty($booking_ids)) {
         $booking_ids = array_values(array_unique($booking_ids));

@@ -1,5 +1,5 @@
 <?php
-// api/user/logout.php  — NEW FILE
+// api/user/logout.php
 // Blacklists the current access token so it cannot be reused after logout.
 // Also deletes the user's refresh token from the database.
 
@@ -32,7 +32,7 @@ try {
         $bl->execute();
     }
 
-    // 2. Delete the refresh token so a new login is required
+    // Delete the refresh token so a new login is required
     $rt = $db->prepare("DELETE FROM refresh_tokens WHERE user_id = :user_id");
     $rt->bindParam(':user_id', $decoded_user['user_id']);
     $rt->execute();

@@ -1,7 +1,5 @@
 <?php
 // api/user/my_bookings.php
-// FIX: Use count($bookings) instead of $stmt->rowCount() after fetchAll().
-// FIX: Safe error messages.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';
@@ -58,8 +56,7 @@ try {
 
     $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // FIX: rowCount() after fetchAll() returns 0 in MySQL PDO.
-    // Always use count() on the actual array.
+
     http_response_code(200);
     echo json_encode([
         "status"        => "success",

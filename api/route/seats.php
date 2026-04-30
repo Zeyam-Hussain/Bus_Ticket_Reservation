@@ -1,6 +1,5 @@
 <?php
 // api/route/seats.php
-// FIX: Safe error messages — internal details no longer exposed.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';

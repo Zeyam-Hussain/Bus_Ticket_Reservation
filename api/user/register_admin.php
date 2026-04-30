@@ -1,8 +1,5 @@
 <?php
 // api/user/register_admin.php
-// FIX: Admin secret now loaded from .env via core.php, not hardcoded.
-// FIX: Safe error messages.
-// FIX: Added Email OTP verification for admin registration.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';
@@ -35,7 +32,7 @@ if (
     exit();
 }
 
-// FIX: $admin_creation_secret comes from .env via core.php
+
 if ($data->admin_secret !== $admin_creation_secret) {
     http_response_code(403);
     echo json_encode(["status" => "error", "message" => "Registration denied."]);

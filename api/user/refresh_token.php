@@ -1,7 +1,6 @@
 <?php
-// api/user/refresh_token.php  — NEW FILE
+// api/user/refresh_token.php
 // Accepts a refresh token, validates it, and returns a new access token.
-// React should call this automatically when the access token expires (401).
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';
@@ -54,7 +53,7 @@ try {
         exit();
     }
 
-    // 3. Issue a new access token
+    // Issue a new access token
     $jti     = bin2hex(random_bytes(16));
     $header  = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
     $payload = json_encode([

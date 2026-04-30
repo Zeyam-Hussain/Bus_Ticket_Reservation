@@ -1,7 +1,5 @@
 <?php
 // api/admin/cancel_booking.php
-// FIX: Safe error messages — no internal paths or stack traces exposed.
-// IMPROVEMENT: Records cancellation_date for tracking.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';

@@ -1,8 +1,5 @@
 <?php
 // api/payment/process.php
-// FIX: Added authentication — unauthenticated users can no longer fake payments.
-// FIX: Verifies the booking belongs to the logged-in user before processing.
-// FIX: Validates total_amount is positive and matches the route base_fare.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';
@@ -96,7 +93,7 @@ if (empty($data->booking_id) || empty($data->total_amount) || empty($data->payme
     exit();
 }
 
-// FIX: Validate amount is a positive number
+// Validate amount is a positive number
 if (!is_numeric($data->total_amount) || $data->total_amount <= 0) {
     http_response_code(400);
     echo json_encode(["status" => "error", "message" => "total_amount must be a positive number."]);
@@ -115,8 +112,7 @@ $user_id = $decoded_user['user_id'];
 try {
     $db->beginTransaction();
 
-    // FIX: Verify booking exists AND belongs to the logged-in user
-    // Enhanced query to get email and name for confirmation email
+    // Verify booking exists and belongs to the logged-in user
     $check = $db->prepare("
         SELECT b.booking_status, b.user_id, b.booking_id,
                u.email, u.full_name,
@@ -138,7 +134,7 @@ try {
 
     $booking = $check->fetch(PDO::FETCH_ASSOC);
 
-    // FIX: Ownership check — passengers can only pay for their own bookings
+    // Ownership check
     if ($booking['user_id'] != $user_id && $decoded_user['role'] !== 'admin') {
         throw new Exception("Access denied.", 403);
     }

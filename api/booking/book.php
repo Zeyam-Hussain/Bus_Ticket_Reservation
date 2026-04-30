@@ -1,12 +1,9 @@
 <?php
 // api/booking/book.php
-// FIX: Correct include order — core.php must be first.
-// FIX: user_id is now taken from the verified JWT token, not from POST body.
-//      A passenger can no longer book on behalf of another user.
 
-include_once '../../config/core.php';        // 1st: sets headers + loads env
-include_once '../../config/database.php';    // 2nd: Database class
-include_once '../../config/validate_token.php'; // 3rd: validates JWT, gives $decoded_user
+include_once '../../config/core.php';
+include_once '../../config/database.php';
+include_once '../../config/validate_token.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -18,14 +15,14 @@ $database = new Database();
 $db       = $database->getConnection();
 $data     = json_decode(file_get_contents("php://input"), true);
 
-// FIX: user_id comes from the token — remove it from required input check
+
 if (empty($data['route_id']) || empty($data['seats'])) {
     http_response_code(400);
     echo json_encode(["status" => "error", "message" => "route_id and seats are required."]);
     exit();
 }
 
-// FIX: Always use the authenticated user's ID
+
 $user_id = $decoded_user['user_id'];
 
 try {
@@ -93,7 +90,7 @@ try {
             throw new Exception("Seat $seat_id is already booked.", 409);
         }
 
-        // 3.5 Check if locked temporarily by ANOTHER user
+        // Check if locked temporarily by another user
         $lock_check = $db->prepare("
             SELECT user_id FROM seat_locks
             WHERE route_id = :route_id AND seat_id = :seat_id AND locked_until > NOW()

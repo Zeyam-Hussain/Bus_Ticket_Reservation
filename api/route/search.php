@@ -1,6 +1,5 @@
 <?php
 // api/route/search.php
-// FIX: Safe error messages.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';

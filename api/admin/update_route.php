@@ -81,8 +81,7 @@ try {
         $params[':arrival_time'] = date('Y-m-d H:i:s', $ts);
     }
     
-    // Validating departure before arrival conceptually missing full context if only one is updated, 
-    // but the DB or domain check could catch it. To be safe, skip strict check if only one is passed.
+
 
     if (isset($data->base_fare)) {
         if (!is_numeric($data->base_fare) || $data->base_fare <= 0) {

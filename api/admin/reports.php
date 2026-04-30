@@ -1,7 +1,6 @@
 <?php
-// api/admin/reports.php  — NEW FILE
+// api/admin/reports.php
 // Returns aggregated report data for the admin panel.
-// Covers assignment requirement: "Reports using aggregate functions"
 // Query param: ?type=revenue | passengers | routes | payments | cancellations
 
 include_once '../../config/core.php';

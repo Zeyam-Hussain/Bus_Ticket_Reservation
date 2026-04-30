@@ -1,7 +1,6 @@
 <?php
-// api/admin/get_all_bookings.php  — NEW FILE
+// api/admin/get_all_bookings.php
 // Admin endpoint: lists all bookings with optional filters.
-// Uses booking_summary_view for a clean flat response.
 // Supports: ?status=confirmed&route_id=1&date_from=2026-04-01&date_to=2026-04-30
 
 include_once '../../config/core.php';

@@ -1,9 +1,5 @@
 <?php
 // api/buses/getBuses.php
-// FIX: Complete rewrite — was using mysqli $conn which doesn't exist in this project.
-// FIX: Now uses PDO via the Database class, consistent with all other files.
-// FIX: Queries the correct table name 'bus' (not 'buses').
-// FIX: Removed duplicate <?php opening tag.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';

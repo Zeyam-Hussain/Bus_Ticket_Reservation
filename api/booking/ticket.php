@@ -1,7 +1,5 @@
 <?php
 // api/booking/ticket.php
-// FIX: Added authentication — no more open access to any user's tickets.
-// FIX: user_id comes from JWT token, not the URL parameter (prevents data theft).
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';
@@ -16,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $database = new Database();
 $db = $database->getConnection();
 
-// FIX: Use the authenticated user's ID from the token, not from $_GET
+
 $user_id = $decoded_user['user_id'];
 
 try {

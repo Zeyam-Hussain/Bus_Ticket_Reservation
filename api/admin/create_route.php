@@ -1,7 +1,5 @@
 <?php
 // api/admin/create_route.php
-// FIX: Added authentication and admin role check — was fully open before.
-// FIX: Added datetime format validation and fare validation.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';
@@ -13,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-// FIX: Admin only
+
 if (!isset($decoded_user['role']) || $decoded_user['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode(["status" => "error", "message" => "Access denied. Admins only."]);
@@ -37,7 +35,7 @@ if (
     exit();
 }
 
-// FIX: Validate datetime (flexible format)
+// Validate datetime format
 $departure_ts = strtotime($data->departure_time);
 $arrival_ts   = strtotime($data->arrival_time);
 
@@ -57,7 +55,7 @@ if ($arrival_ts <= $departure_ts) {
 $data->departure_time = date('Y-m-d H:i:s', $departure_ts);
 $data->arrival_time   = date('Y-m-d H:i:s', $arrival_ts);
 
-// FIX: Validate fare
+// Validate fare
 if (!is_numeric($data->base_fare) || $data->base_fare <= 0) {
     http_response_code(400);
     echo json_encode(["status" => "error", "message" => "base_fare must be a positive number."]);

@@ -1,7 +1,5 @@
 <?php
 // api/admin/dashboard.php
-// FIX: Added authentication and admin role check — was fully public before.
-// FIX: Safe error messages.
 
 include_once '../../config/core.php';
 include_once '../../config/database.php';
@@ -13,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit();
 }
 
-// FIX: Admin only
+
 if (!isset($decoded_user['role']) || $decoded_user['role'] !== 'admin') {
     http_response_code(403);
     echo json_encode(["status" => "error", "message" => "Access denied. Admins only."]);

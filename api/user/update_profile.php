@@ -1,5 +1,5 @@
 <?php
-// api/user/update_profile.php  — NEW FILE
+// api/user/update_profile.php
 // Allows an authenticated user to update their own name, phone, or password.
 
 include_once '../../config/core.php';
