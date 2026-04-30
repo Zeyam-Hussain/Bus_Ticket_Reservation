@@ -29,7 +29,7 @@ try {
     $routes_stmt = $db->query("
         SELECT route_id, source_city, destination_city, departure_time 
         FROM route 
-        WHERE departure_time < DATE_SUB(NOW(), INTERVAL 10 DAY)
+        WHERE departure_time < DATE_SUB(NOW(), INTERVAL 2 YEAR)
     ");
     $response['old_routes'] = $routes_stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -38,7 +38,7 @@ try {
     $bookings_stmt = $db->query("
         SELECT b.booking_id, b.user_id, b.route_id, b.booking_date, b.booking_status
         FROM booking b
-        WHERE b.booking_date < DATE_SUB(NOW(), INTERVAL 10 DAY)
+        WHERE b.booking_date < DATE_SUB(NOW(), INTERVAL 2 YEAR)
     ");
     $response['old_bookings'] = $bookings_stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -47,7 +47,7 @@ try {
     $buses_stmt = $db->query("
         SELECT bus_id, registration_number, created_at 
         FROM bus 
-        WHERE created_at < DATE_SUB(NOW(), INTERVAL 10 DAY)
+        WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 YEAR)
     ");
     $response['old_buses'] = $buses_stmt->fetchAll(PDO::FETCH_ASSOC);
 

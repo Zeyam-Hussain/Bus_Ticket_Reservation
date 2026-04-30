@@ -33,13 +33,13 @@ try {
     $bus_ids = [];
 
     if ($delete_all) {
-        $routes_stmt = $db->query("SELECT route_id FROM route WHERE departure_time < DATE_SUB(NOW(), INTERVAL 10 DAY)");
+        $routes_stmt = $db->query("SELECT route_id FROM route WHERE departure_time < DATE_SUB(NOW(), INTERVAL 2 YEAR)");
         $route_ids = $routes_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $bookings_stmt = $db->query("SELECT booking_id FROM booking WHERE booking_date < DATE_SUB(NOW(), INTERVAL 10 DAY)");
+        $bookings_stmt = $db->query("SELECT booking_id FROM booking WHERE booking_date < DATE_SUB(NOW(), INTERVAL 2 YEAR)");
         $booking_ids = $bookings_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $buses_stmt = $db->query("SELECT bus_id FROM bus WHERE created_at < DATE_SUB(NOW(), INTERVAL 10 DAY)");
+        $buses_stmt = $db->query("SELECT bus_id FROM bus WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 YEAR)");
         $bus_ids = $buses_stmt->fetchAll(PDO::FETCH_COLUMN);
     } else {
         $route_ids = $data->route_ids ?? [];
@@ -49,27 +49,30 @@ try {
 
     // Prepare to gather all dependent IDs
     if (!empty($bus_ids)) {
+        $bus_ids = array_values(array_unique($bus_ids));
         $inQuery = implode(',', array_fill(0, count($bus_ids), '?'));
         $stmt = $db->prepare("SELECT route_id FROM route WHERE bus_id IN ($inQuery)");
         $stmt->execute($bus_ids);
         $bus_route_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
         if (!empty($bus_route_ids)) {
-            $route_ids = array_unique(array_merge($route_ids, $bus_route_ids));
+            $route_ids = array_merge($route_ids, $bus_route_ids);
         }
     }
 
     if (!empty($route_ids)) {
+        $route_ids = array_values(array_unique($route_ids));
         $inQuery = implode(',', array_fill(0, count($route_ids), '?'));
         $stmt = $db->prepare("SELECT booking_id FROM booking WHERE route_id IN ($inQuery)");
         $stmt->execute($route_ids);
         $route_booking_ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        $booking_ids = array_unique(array_merge($booking_ids, $route_booking_ids));
+        $booking_ids = array_merge($booking_ids, $route_booking_ids);
     }
     
     // Now delete in correct order: Payments -> Bookings -> Routes -> Seats -> Buses
     
     if (!empty($booking_ids)) {
+        $booking_ids = array_values(array_unique($booking_ids));
         $inQuery = implode(',', array_fill(0, count($booking_ids), '?'));
         $stmt = $db->prepare("DELETE FROM payment WHERE booking_id IN ($inQuery)");
         $stmt->execute($booking_ids);
@@ -79,12 +82,20 @@ try {
     }
     
     if (!empty($route_ids)) {
+        $route_ids = array_values(array_unique($route_ids));
         $inQuery = implode(',', array_fill(0, count($route_ids), '?'));
+        
+        // Delete seat_locks first
+        $stmt = $db->prepare("DELETE FROM seat_locks WHERE route_id IN ($inQuery)");
+        $stmt->execute($route_ids);
+
+        // Then delete routes
         $stmt = $db->prepare("DELETE FROM route WHERE route_id IN ($inQuery)");
         $stmt->execute($route_ids);
     }
     
     if (!empty($bus_ids)) {
+        $bus_ids = array_values(array_unique($bus_ids));
         $inQuery = implode(',', array_fill(0, count($bus_ids), '?'));
         
         $stmt = $db->prepare("DELETE FROM seat WHERE bus_id IN ($inQuery)");

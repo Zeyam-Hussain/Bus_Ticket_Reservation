@@ -64,19 +64,21 @@ try {
     }
 
     if (!empty($data->departure_time)) {
-        if (!DateTime::createFromFormat('Y-m-d H:i:s', $data->departure_time)) {
-            throw new Exception("Invalid departure time format. Use YYYY-MM-DD HH:MM:SS.", 400);
+        $ts = strtotime($data->departure_time);
+        if (!$ts) {
+            throw new Exception("Invalid departure time format. Please use YYYY-MM-DD HH:MM:SS.", 400);
         }
         $update_fields[] = "departure_time = :departure_time";
-        $params[':departure_time'] = $data->departure_time;
+        $params[':departure_time'] = date('Y-m-d H:i:s', $ts);
     }
 
     if (!empty($data->arrival_time)) {
-        if (!DateTime::createFromFormat('Y-m-d H:i:s', $data->arrival_time)) {
-            throw new Exception("Invalid arrival time format. Use YYYY-MM-DD HH:MM:SS.", 400);
+        $ts = strtotime($data->arrival_time);
+        if (!$ts) {
+            throw new Exception("Invalid arrival time format. Please use YYYY-MM-DD HH:MM:SS.", 400);
         }
         $update_fields[] = "arrival_time = :arrival_time";
-        $params[':arrival_time'] = $data->arrival_time;
+        $params[':arrival_time'] = date('Y-m-d H:i:s', $ts);
     }
     
     // Validating departure before arrival conceptually missing full context if only one is updated, 

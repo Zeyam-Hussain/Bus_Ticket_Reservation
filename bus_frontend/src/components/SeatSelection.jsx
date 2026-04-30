@@ -23,10 +23,10 @@ const T = {
   seatMaleC: new THREE.Color('#3b82f6'),
   seatFemaleHex: '#ec4899',
   seatFemaleC: new THREE.Color('#ec4899'),
-  seatBookedMHex: '#4a3014',
-  seatBookedMC: new THREE.Color('#4a3014'),
-  seatBookedFHex: '#4a3014',
-  seatBookedFC: new THREE.Color('#4a3014'),
+  seatBookedMHex: '#3b82f6',
+  seatBookedMC: new THREE.Color('#3b82f6'),
+  seatBookedFHex: '#ec4899',
+  seatBookedFC: new THREE.Color('#ec4899'),
   seatHoverC: new THREE.Color('#f5c842'),
 };
 
@@ -668,7 +668,12 @@ const SeatGrid2D = ({ seats, gender, selectedSeats, onSeatToggle }) => {
             </svg>
           </div>
         )}
-        {!isSel && seat.seatNumber}
+        {!isSel && isBooked && (
+          <div style={{ fontSize: 14, opacity: 0.8 }}>
+            {seat.gender === 'female' ? '♀' : '♂'}
+          </div>
+        )}
+        {!isSel && !isBooked && seat.seatNumber}
       </button>
     );
   };

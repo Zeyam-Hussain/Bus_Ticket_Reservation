@@ -37,21 +37,25 @@ if (
     exit();
 }
 
-// FIX: Validate datetime format (expected: YYYY-MM-DD HH:MM:SS)
-$departure = DateTime::createFromFormat('Y-m-d H:i:s', $data->departure_time);
-$arrival   = DateTime::createFromFormat('Y-m-d H:i:s', $data->arrival_time);
+// FIX: Validate datetime (flexible format)
+$departure_ts = strtotime($data->departure_time);
+$arrival_ts   = strtotime($data->arrival_time);
 
-if (!$departure || !$arrival) {
+if (!$departure_ts || !$arrival_ts) {
     http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Invalid datetime format. Use YYYY-MM-DD HH:MM:SS."]);
+    echo json_encode(["status" => "error", "message" => "Invalid date/time format. Please use YYYY-MM-DD HH:MM:SS."]);
     exit();
 }
 
-if ($arrival <= $departure) {
+if ($arrival_ts <= $departure_ts) {
     http_response_code(400);
     echo json_encode(["status" => "error", "message" => "Arrival time must be after departure time."]);
     exit();
 }
+
+// Convert back to standard SQL format to be sure
+$data->departure_time = date('Y-m-d H:i:s', $departure_ts);
+$data->arrival_time   = date('Y-m-d H:i:s', $arrival_ts);
 
 // FIX: Validate fare
 if (!is_numeric($data->base_fare) || $data->base_fare <= 0) {
@@ -63,7 +67,7 @@ if (!is_numeric($data->base_fare) || $data->base_fare <= 0) {
 try {
     // Verify bus exists
     $bus_check = $db->prepare("SELECT bus_id FROM bus WHERE bus_id = :bus_id LIMIT 1");
-    $bus_check->bindParam(':bus_id', $data->bus_id);
+    $bus_check->bindValue(':bus_id', $data->bus_id);
     $bus_check->execute();
 
     if ($bus_check->rowCount() === 0) {
@@ -73,15 +77,16 @@ try {
     }
 
     $stmt = $db->prepare("
-        INSERT INTO route (bus_id, source_city, destination_city, departure_time, arrival_time, base_fare)
-        VALUES (:bus_id, :source, :destination, :departure, :arrival, :fare)
+        INSERT INTO route (bus_id, source_city, destination_city, departure_time, arrival_time, base_fare, status)
+        VALUES (:bus_id, :source, :destination, :departure, :arrival, :fare, 'active')
     ");
-    $stmt->bindParam(':bus_id',      $data->bus_id);
+    
+    $stmt->bindValue(':bus_id',      $data->bus_id);
     $stmt->bindValue(':source',      htmlspecialchars(strip_tags($data->source_city)));
     $stmt->bindValue(':destination', htmlspecialchars(strip_tags($data->destination_city)));
-    $stmt->bindParam(':departure',   $data->departure_time);
-    $stmt->bindParam(':arrival',     $data->arrival_time);
-    $stmt->bindParam(':fare',        $data->base_fare);
+    $stmt->bindValue(':departure',   $data->departure_time);
+    $stmt->bindValue(':arrival',     $data->arrival_time);
+    $stmt->bindValue(':fare',        $data->base_fare);
 
     if ($stmt->execute()) {
         http_response_code(201);
@@ -91,12 +96,16 @@ try {
             "route_id" => $db->lastInsertId()
         ]);
     } else {
-        throw new Exception("Insert failed.");
+        throw new Exception("Database insert failed.");
     }
 
+} catch (PDOException $e) {
+    error_log("Create route PDO error: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(["status" => "error", "message" => "Database error: " . $e->getMessage()]);
 } catch (Throwable $e) {
     error_log("Create route error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Server error. Could not create route."]);
+    echo json_encode(["status" => "error", "message" => $e->getMessage()]);
 }
 ?>

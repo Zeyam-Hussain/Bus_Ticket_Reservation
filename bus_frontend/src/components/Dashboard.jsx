@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { LayoutDashboard, Route as RouteIcon, Ticket, LogOut, Plus, Trash2, Edit, AlertTriangle, Bus } from 'lucide-react';
+import { LayoutDashboard, Route as RouteIcon, Ticket, LogOut, Plus, Trash2, Edit, AlertTriangle, Bus, FileText } from 'lucide-react';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -43,6 +43,11 @@ const Dashboard = () => {
     total_capacity: '' 
   });
 
+  // Reports Data
+  const [reportsData, setReportsData] = useState([]);
+  const [reportType, setReportType] = useState('revenue');
+  const [isReportsLoading, setIsReportsLoading] = useState(false);
+
 
 
   useEffect(() => {
@@ -58,6 +63,12 @@ const Dashboard = () => {
       fetchOldData();
     }
   }, [navigate]);
+
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchReports();
+    }
+  }, [activeTab, reportType]);
 
   const getHeaders = () => ({
     'Content-Type': 'application/json',
@@ -114,17 +125,6 @@ const Dashboard = () => {
     }
   };
 
-  const fetchBuses = async () => {
-    try {
-      const res = await fetch('/api/buses/getBuses.php', { headers: getHeaders() });
-      const data = await res.json();
-      if (data.status === 'success') {
-        setBuses(data.data || []);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const fetchOldData = async () => {
     try {
@@ -204,22 +204,34 @@ const Dashboard = () => {
     }
   };
 
-  const handleDeleteRoute = async (routeId) => {
-    if (!window.confirm('Are you sure you want to delete this route?')) return;
+  const handleDeleteRoute = async (routeId, password = null) => {
+    if (!password && !window.confirm('Are you sure you want to delete this route?')) return;
+    
     try {
       const res = await fetch('/api/admin/delete_route.php', {
-        method: 'POST',
+        method: 'DELETE',
         headers: getHeaders(),
-        body: JSON.stringify({ route_id: routeId })
+        body: JSON.stringify({ 
+          route_id: routeId,
+          admin_password: password
+        })
       });
       const data = await res.json();
+      
       if (data.status === 'success') {
         fetchRoutes();
+        if (password) alert('Route deleted successfully.');
+      } else if (data.requires_password) {
+        const adminPass = window.prompt(data.message);
+        if (adminPass) {
+          handleDeleteRoute(routeId, adminPass);
+        }
       } else {
         alert(data.message);
       }
     } catch (e) {
       console.error(e);
+      alert('An error occurred while deleting the route.');
     }
   };
 
@@ -249,67 +261,47 @@ const Dashboard = () => {
     }
   };
 
-  const handleDeleteBus = async (busId) => {
-    if (!window.confirm('Are you sure you want to delete this bus?')) return;
+  const handleDeleteBus = async (busId, password = null) => {
+    if (!password && !window.confirm('Are you sure you want to delete this bus?')) return;
     try {
       const res = await fetch('/api/buses/delete_bus.php', {
         method: 'DELETE',
         headers: getHeaders(),
-        body: JSON.stringify({ bus_id: busId })
+        body: JSON.stringify({ 
+          bus_id: busId,
+          admin_password: password
+        })
       });
       const data = await res.json();
       if (data.status === 'success') {
         fetchBuses();
+        if (password) alert('Bus deleted successfully.');
+      } else if (data.requires_password) {
+        const adminPass = window.prompt(data.message);
+        if (adminPass) {
+          handleDeleteBus(busId, adminPass);
+        }
       } else {
         alert(data.message);
       }
     } catch (e) {
       console.error(e);
+      alert('An error occurred while deleting the bus.');
     }
   };
 
-  const handleBusSubmit = async (e) => {
-    e.preventDefault();
-    const isEdit = !!busFormData.bus_id;
-    const url = isEdit ? '/api/buses/update_bus.php' : '/api/buses/create_bus.php';
-    const method = isEdit ? 'PUT' : 'POST';
-    
+  const fetchReports = async () => {
+    setIsReportsLoading(true);
     try {
-      const res = await fetch(url, {
-        method: method,
-        headers: getHeaders(),
-        body: JSON.stringify(busFormData)
-      });
+      const res = await fetch(`/api/admin/reports.php?type=${reportType}`, { headers: getHeaders() });
       const data = await res.json();
       if (data.status === 'success') {
-        fetchBuses();
-        setIsBusModalOpen(false);
-        setBusFormData({ bus_id: '', bus_type: '', registration_number: '', total_capacity: '' });
-      } else {
-        alert(data.message);
+        setReportsData(data.data || []);
       }
     } catch (e) {
       console.error(e);
-      alert('Error saving bus');
-    }
-  };
-
-  const handleDeleteBus = async (busId) => {
-    if (!window.confirm('Are you sure you want to delete this bus?')) return;
-    try {
-      const res = await fetch('/api/buses/delete_bus.php', {
-        method: 'DELETE',
-        headers: getHeaders(),
-        body: JSON.stringify({ bus_id: busId })
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
-        fetchBuses();
-      } else {
-        alert(data.message);
-      }
-    } catch (e) {
-      console.error(e);
+    } finally {
+      setIsReportsLoading(false);
     }
   };
 
@@ -370,7 +362,12 @@ const Dashboard = () => {
           >
             <Bus className="w-5 h-5" /> Buses
           </button>
-
+          <button 
+            onClick={() => setActiveTab('reports')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'reports' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-black hover:bg-gray-50'}`}
+          >
+            <FileText className="w-5 h-5" /> Reports
+          </button>
         </nav>
 
         <button 
@@ -399,7 +396,7 @@ const Dashboard = () => {
                     Data Cleanup Recommended
                   </h3>
                   <p className="text-amber-700 text-sm mt-1">
-                    There are {oldData.counts.routes} routes, {oldData.counts.bookings} bookings, and {oldData.counts.buses} buses older than 10 days taking up space.
+                    There are {oldData.counts.routes} routes, {oldData.counts.bookings} bookings, and {oldData.counts.buses} buses older than 2 years taking up space.
                   </p>
                 </div>
                 <button 
@@ -668,6 +665,64 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'reports' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold tracking-tight mb-1">System Reports</h2>
+                <p className="text-gray-500">View detailed analytics and aggregate data.</p>
+              </div>
+              <select 
+                value={reportType} 
+                onChange={(e) => setReportType(e.target.value)}
+                className="bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black"
+              >
+                <option value="revenue">Revenue by Payment Method</option>
+                <option value="routes">Revenue by Route</option>
+                <option value="passengers">Passenger Statistics</option>
+                <option value="monthly">Monthly Booking Trend</option>
+                <option value="cancellations">Cancellation Report</option>
+              </select>
+            </div>
+
+            {isReportsLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : (
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      {reportsData.length > 0 && Object.keys(reportsData[0]).map((key) => (
+                        <th key={key} className="px-6 py-4 font-medium text-gray-500 capitalize">
+                          {key.replace(/_/g, ' ')}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {reportsData.map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        {Object.values(row).map((val, j) => (
+                          <td key={j} className="px-6 py-4">
+                            {typeof val === 'number' && (String(val).includes('.') || val > 1000) ? `Rs. ${val}` : val}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                    {reportsData.length === 0 && (
+                      <tr>
+                        <td colSpan="10" className="px-6 py-8 text-center text-gray-500">No report data found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* Route Modal */}
@@ -678,8 +733,20 @@ const Dashboard = () => {
             <form onSubmit={handleRouteSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bus ID</label>
-                  <input type="text" required value={routeFormData.bus_id} onChange={e => setRouteFormData({...routeFormData, bus_id: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Bus</label>
+                  <select 
+                    required 
+                    value={routeFormData.bus_id} 
+                    onChange={e => setRouteFormData({...routeFormData, bus_id: e.target.value})} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white"
+                  >
+                    <option value="" disabled>Choose a bus...</option>
+                    {buses.map(bus => (
+                      <option key={bus.bus_id} value={bus.bus_id}>
+                        {bus.registration_number} ({bus.bus_type})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
@@ -755,14 +822,14 @@ const Dashboard = () => {
               Delete Old Data
             </h3>
             <p className="text-gray-600 mb-6 text-sm">
-              The following records are older than 10 days. You can delete them all at once to free up database space. This action cannot be undone.
+              The following records are older than 2 years. You can delete them all at once to free up database space. This action cannot be undone.
             </p>
 
             <div className="space-y-4 mb-8">
               <div className="border border-gray-200 rounded-lg p-4 flex justify-between items-center">
                 <div>
                   <h4 className="font-bold text-gray-900">Old Routes</h4>
-                  <p className="text-sm text-gray-500">Departure dates older than 10 days</p>
+                  <p className="text-sm text-gray-500">Departure dates older than 2 years</p>
                 </div>
                 <div className="text-xl font-black">{oldData.counts.routes}</div>
               </div>
