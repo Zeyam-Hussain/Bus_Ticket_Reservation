@@ -1,18 +1,14 @@
 {
   "version": 2,
   "functions": {
-    "bus_backend/api/**/*.php": {
+    "api/**/*.php": {
       "runtime": "vercel-php@0.6.0"
     }
   },
   "routes": [
     {
-      "src": "/api/user/login",
-      "dest": "/bus_backend/api/user/login.php"
-    },
-    {
-      "src": "/api/user/register",
-      "dest": "/bus_backend/api/user/register.php"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
     },
     {
       "src": "/(.*)",
