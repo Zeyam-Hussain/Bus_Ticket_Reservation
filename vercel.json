@@ -7,8 +7,12 @@
   },
   "routes": [
     {
-      "src": "/api/(.*)",
-      "destination": "/bus_backend/api/$1.php"
+      "src": "/api/user/login",
+      "dest": "/bus_backend/api/user/login.php"
+    },
+    {
+      "src": "/api/user/register",
+      "dest": "/bus_backend/api/user/register.php"
     },
     {
       "src": "/(.*)",
