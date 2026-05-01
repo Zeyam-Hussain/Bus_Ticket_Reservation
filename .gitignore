@@ -1,1 +1,9 @@
 .env
+.env.production
+.env.infinityfree
+node_modules/
+vendor/
+composer.phar
+dist/
+bus_frontend/node_modules/
+bus_frontend/dist/

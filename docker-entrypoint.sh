@@ -26,8 +26,8 @@ TABLE_COUNT=$(mysql -h"${DB_HOST}" -P"${DB_PORT:-3306}" -u"${DB_USER}" -p"${DB_P
     -se "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';" 2>/dev/null || echo "0")
 
 if [ "$TABLE_COUNT" -eq "0" ]; then
-    echo "  Database is empty. Importing schema from db_dump.sql..."
-    mysql -h"${DB_HOST}" -P"${DB_PORT:-3306}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < /var/www/html/db_dump.sql
+    echo "  Database is empty. Importing schema from scripts.sql..."
+    mysql -h"${DB_HOST}" -P"${DB_PORT:-3306}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < /var/www/html/scripts.sql
     echo "  Database imported successfully!"
 else
     echo "  Database already has $TABLE_COUNT tables. Skipping import."
