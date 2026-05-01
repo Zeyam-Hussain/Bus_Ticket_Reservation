@@ -6,10 +6,10 @@ echo "  Bus Reservation System - Starting"
 echo "======================================"
 
 # ── Wait for MySQL to be ready ──────────────────────────────
-echo "[1/3] Waiting for MySQL at ${DB_HOST}:3306..."
+echo "[1/3] Waiting for MySQL at ${DB_HOST}:${DB_PORT:-3306}..."
 max_tries=30
 count=0
-until mysqladmin ping -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" --silent 2>/dev/null; do
+until mysqladmin ping -h"${DB_HOST}" -P"${DB_PORT:-3306}" -u"${DB_USER}" -p"${DB_PASS}" --silent 2>/dev/null; do
     count=$((count + 1))
     if [ "$count" -ge "$max_tries" ]; then
         echo "ERROR: MySQL did not become ready in time. Exiting."
@@ -22,12 +22,12 @@ echo "  MySQL is ready!"
 
 # ── Import database dump if DB is empty ─────────────────────
 echo "[2/3] Checking database..."
-TABLE_COUNT=$(mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
+TABLE_COUNT=$(mysql -h"${DB_HOST}" -P"${DB_PORT:-3306}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" \
     -se "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}';" 2>/dev/null || echo "0")
 
 if [ "$TABLE_COUNT" -eq "0" ]; then
     echo "  Database is empty. Importing schema from db_dump.sql..."
-    mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < /var/www/html/db_dump.sql
+    mysql -h"${DB_HOST}" -P"${DB_PORT:-3306}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < /var/www/html/db_dump.sql
     echo "  Database imported successfully!"
 else
     echo "  Database already has $TABLE_COUNT tables. Skipping import."
@@ -44,6 +44,7 @@ JWT_EXPIRY=${JWT_EXPIRY:-900}
 REFRESH_TOKEN_EXPIRY=${REFRESH_TOKEN_EXPIRY:-604800}
 ADMIN_CREATION_SECRET=${ADMIN_CREATION_SECRET}
 DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT:-3306}
 DB_NAME=${DB_NAME}
 DB_USER=${DB_USER}
 DB_PASS=${DB_PASS}

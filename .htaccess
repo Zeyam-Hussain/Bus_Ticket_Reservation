@@ -1,7 +1,19 @@
-# Ensure Authorization header is passed to PHP
-RewriteEngine On
-RewriteCond %{HTTP:Authorization} ^(.*)
-RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Protect .env file
+  <Files ".env">
+    Order allow,deny
+    Deny from all
+  </Files>
 
-# Optional: Disable directory browsing
-Options -Indexes
+  # Don't rewrite for actual files or directories (allows API and assets to work)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Redirect all other requests to index.html for React Router
+  RewriteRule ^ index.html [L]
+</IfModule>
+

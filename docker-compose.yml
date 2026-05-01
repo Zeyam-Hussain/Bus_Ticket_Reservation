@@ -12,26 +12,6 @@ version: '3.8'
 
 services:
 
-  # ── MySQL 8 Database ────────────────────────────────────────
-  db:
-    image: mysql:8.0
-    container_name: bus_db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: root_password_123
-      MYSQL_DATABASE: bus_reservation_system
-      MYSQL_USER: bus_user
-      MYSQL_PASSWORD: bus_password_123
-    ports:
-      - "3307:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "bus_user", "-pbus_password_123"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
 
   # ── PHP + Apache App ─────────────────────────────────────────
   app:
@@ -43,19 +23,20 @@ services:
     restart: unless-stopped
     ports:
       - "8080:80"
-    depends_on:
-      db:
-        condition: service_healthy
+    volumes:
+      - ./ssl:/etc/apache2/ssl
     environment:
       # Application
       APP_ENV: production
       ALLOWED_ORIGIN: http://localhost:8080
 
       # Database — points to the db service name
-      DB_HOST: db
-      DB_NAME: bus_reservation_system
-      DB_USER: bus_user
-      DB_PASS: bus_password_123
+      # Database — Aiven MySQL
+      DB_HOST: mysql-16200410-pwr-0f60.l.aivencloud.com
+      DB_PORT: 24495
+      DB_NAME: defaultdb
+      DB_USER: avnadmin
+      DB_PASS: YOUR_AIVEN_PASSWORD_HERE
 
       # JWT
       JWT_SECRET_KEY: VPRGXSP5oRlxTRpgoEn3UfOqbHD8z/P6Yt3xCCET8Ck=
@@ -77,6 +58,6 @@ services:
       # API
       API_BASE_URL: http://localhost:8080/api
 
-volumes:
-  db_data:
-    driver: local
+# volumes:
+#   db_data:
+#     driver: local
