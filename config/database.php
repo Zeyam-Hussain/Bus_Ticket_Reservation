@@ -12,12 +12,12 @@ class Database {
     public $conn;
 
     public function __construct() {
-        // FIX: Read credentials from environment variables set by core.php
-        $this->host     = $_ENV['DB_HOST'] ?? 'localhost';
-        $this->port     = $_ENV['DB_PORT'] ?? '3306';
-        $this->db_name  = $_ENV['DB_NAME'] ?? 'bus_reservation_system';
-        $this->username = $_ENV['DB_USER'] ?? 'root';
-        $this->password = $_ENV['DB_PASS'] ?? '';
+        // FIX: Read credentials from environment variables (works with .env or platform env)
+        $this->host     = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost';
+        $this->port     = $_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306';
+        $this->db_name  = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: 'bus_reservation_system';
+        $this->username = $_ENV['DB_USER'] ?? getenv('DB_USER') ?: 'root';
+        $this->password = $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?: '';
     }
 
     public function getConnection() {
@@ -30,7 +30,7 @@ class Database {
             ];
 
             // Add SSL CA only if DB_SSL is true (e.g. for Aiven)
-            $db_ssl = filter_var($_ENV['DB_SSL'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $db_ssl = filter_var($_ENV['DB_SSL'] ?? getenv('DB_SSL') ?? false, FILTER_VALIDATE_BOOLEAN);
             $ssl_ca = __DIR__ . '/../ssl/aiven-ca.pem';
             
             if ($db_ssl && file_exists($ssl_ca)) {

@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "build": "npm install --prefix bus_frontend && npm run build --prefix bus_frontend"
+  },
   "devDependencies": {
     "docx": "^9.6.1"
   }

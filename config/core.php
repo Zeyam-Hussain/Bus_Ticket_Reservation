@@ -4,19 +4,25 @@
 // ==========================================
 // 1. LOAD ENVIRONMENT VARIABLES
 // ==========================================
-// Reads from the .env file located at the project root (one level above htdocs).
-// Never hardcode secrets in PHP files.
+// Reads from the .env file if it exists, otherwise relies on system environment variables (e.g. Vercel, Docker).
 $env_path = __DIR__ . '/../.env';
 if (file_exists($env_path)) {
     $lines = file($env_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0)
-            continue; // skip comments
+        if (strpos(trim($line), '#') === 0) continue;
         if (strpos($line, '=') !== false) {
             [$key, $value] = explode('=', $line, 2);
-            $_ENV[trim($key)] = trim($value);
+            $key = trim($key);
+            $value = trim($value);
+            $_ENV[$key] = $value;
+            putenv("$key=$value");
         }
     }
+}
+
+// Helper to get environment variables from $_ENV or getenv()
+function get_env_var($key, $default = null) {
+    return $_ENV[$key] ?? getenv($key) ?: $default;
 }
 
 // ==========================================
@@ -24,7 +30,7 @@ if (file_exists($env_path)) {
 // ==========================================
 // FIX: Restrict origin to your React app only. Replace with your production
 // domain when deploying (e.g. "https://yourdomain.com").
-$allowed_origin = $_ENV['ALLOWED_ORIGIN'] ?? 'http://localhost:3000';
+$allowed_origin = get_env_var('ALLOWED_ORIGIN', 'http://localhost:3000');
 $request_origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if ($request_origin === $allowed_origin) {
@@ -46,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // 3. CORE APPLICATION SETTINGS
 // ==========================================
 // FIX: Show errors only in development, never in production.
-$app_env = $_ENV['APP_ENV'] ?? 'production';
+$app_env = get_env_var('APP_ENV', 'production');
 if ($app_env === 'development') {
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
@@ -62,8 +68,8 @@ date_default_timezone_set('Asia/Karachi');
 // ==========================================
 // FIX: Never hardcode these. They live in the .env file.
 // Generate jwt_secret with: php -r "echo base64_encode(random_bytes(32));"
-$jwt_secret_key = $_ENV['JWT_SECRET_KEY'] ?? '';
-$admin_creation_secret = $_ENV['ADMIN_CREATION_SECRET'] ?? '';
+$jwt_secret_key = get_env_var('JWT_SECRET_KEY', '');
+$admin_creation_secret = get_env_var('ADMIN_CREATION_SECRET', '');
 
 if (empty($jwt_secret_key)) {
     http_response_code(500);
