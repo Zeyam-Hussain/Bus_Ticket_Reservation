@@ -24,8 +24,9 @@ try {
         $exp = $decoded_user['exp'] ?? (time() + 900);
 
         $bl = $db->prepare(
-            "INSERT IGNORE INTO token_blacklist (jti, expires_at)
-             VALUES (:jti, FROM_UNIXTIME(:exp))"
+            "INSERT INTO token_blacklist (jti, expires_at)
+             VALUES (:jti, TO_TIMESTAMP(:exp))
+             ON CONFLICT (jti) DO NOTHING"
         );
         $bl->bindParam(':jti', $decoded_user['jti']);
         $bl->bindParam(':exp', $exp);

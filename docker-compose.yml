@@ -1,63 +1,53 @@
-version: '3.8'
-
-# ================================================================
-# Bus Reservation System — Docker Compose
-# ================================================================
-# Usage:
-#   Start:   docker compose up -d
-#   Stop:    docker compose down
-#   Logs:    docker compose logs -f
-#   Rebuild: docker compose up -d --build
-# ================================================================
-
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-bus_reservation_system}
+      POSTGRES_USER: ${DB_USER:-bus_app}
+      POSTGRES_PASSWORD: ${DB_PASS:?Set DB_PASS in .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
-
-  # ── PHP + Apache App ─────────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
     image: bus-reservation-system:latest
-    container_name: bus_app
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
-      - "8080:80"
-    volumes:
-      - ./ssl:/etc/apache2/ssl
+      - "127.0.0.1:8080:80"
     environment:
-      # Application
-      APP_ENV: production
-      ALLOWED_ORIGIN: http://localhost:8080
-
-      # Database — points to the db service name
-      # Database — Aiven MySQL
-      DB_HOST: mysql-16200410-pwr-0f60.l.aivencloud.com
-      DB_PORT: 24495
-      DB_NAME: defaultdb
-      DB_USER: avnadmin
-      DB_PASS: YOUR_AIVEN_PASSWORD_HERE
-
-      # JWT
-      JWT_SECRET_KEY: VPRGXSP5oRlxTRpgoEn3UfOqbHD8z/P6Yt3xCCET8Ck=
-      JWT_ALGORITHM: HS256
-      JWT_EXPIRY: 900
-      REFRESH_TOKEN_EXPIRY: 604800
-
-      # Admin
-      ADMIN_CREATION_SECRET: Fast123@
-
-      # SMTP — change these to working credentials before sharing
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_USER: zeyam0888@gmail.com
-      SMTP_PASS: xebq khht lhno uvhs
-      SMTP_FROM: ZeyamDaewoo@gmail.com
-      SMTP_FROM_NAME: Bus Reservation System
-
-      # API
+      APP_ENV: ${APP_ENV:-development}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:8080}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-bus_reservation_system}
+      DB_USER: ${DB_USER:-bus_app}
+      DB_PASS: ${DB_PASS:?Set DB_PASS in .env}
+      DB_SSL: "false"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
+      ADMIN_CREATION_SECRET: ${ADMIN_CREATION_SECRET:?Set ADMIN_CREATION_SECRET in .env}
+      SMTP_HOST: ${SMTP_HOST:?Set SMTP_HOST in .env}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_SECURE: ${SMTP_SECURE:-tls}
+      SMTP_USER: ${SMTP_USER:?Set SMTP_USER in .env}
+      SMTP_PASS: ${SMTP_PASS:?Set SMTP_PASS in .env}
+      SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM in .env}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Bus Reservation System}
       API_BASE_URL: http://localhost:8080/api
 
-# volumes:
-#   db_data:
-#     driver: local
+volumes:
+  postgres_data:

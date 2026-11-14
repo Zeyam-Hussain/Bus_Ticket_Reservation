@@ -61,12 +61,12 @@ try {
 
         // Verify password
         $user_id = $decoded_user['user_id'];
-        $pass_stmt = $db->prepare("SELECT password FROM users WHERE user_id = :user_id LIMIT 1");
+        $pass_stmt = $db->prepare("SELECT password_hash FROM users WHERE user_id = :user_id LIMIT 1");
         $pass_stmt->bindParam(':user_id', $user_id);
         $pass_stmt->execute();
         $user_data = $pass_stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$user_data || !password_verify($data->admin_password, $user_data['password'])) {
+        if (!$user_data || !password_verify($data->admin_password, $user_data['password_hash'])) {
             http_response_code(401);
             echo json_encode(["status" => "error", "message" => "Invalid admin password. Deletion denied."]);
             exit();

@@ -4,11 +4,14 @@
 # Builds the Docker image and saves it as a shareable .tar file
 # ================================================================
 # Usage:
-#   chmod +x build_and_export.sh
-#   ./build_and_export.sh
+#   chmod +x scripts/build_and_export.sh
+#   ./scripts/build_and_export.sh
 # ================================================================
 
 set -e
+
+PROJECT_ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 IMAGE_NAME="bus-reservation-system"
 IMAGE_TAG="latest"

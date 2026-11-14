@@ -40,24 +40,14 @@ try {
         exit();
     }
 
-    // Optional Cascade cleanup (handling common tables to prevent constraint failures)
-    // Ignore errors if tables don't exist
-    try { $db->prepare("DELETE FROM refresh_tokens WHERE user_id = :id")->execute([':id' => $user_id]); } catch (Throwable $e) {}
-    try { $db->prepare("DELETE FROM waitlist WHERE user_id = :id")->execute([':id' => $user_id]); } catch (Throwable $e) {}
-    try { $db->prepare("DELETE FROM login_attempts WHERE email = :email")->execute([':email' => $user['email']]); } catch (Throwable $e) {}
-    
-    // Booking related (if schema uses cascade this is redundant, but safe)
-    try { 
-        $db->prepare("DELETE FROM booked_seats WHERE booking_id IN (SELECT booking_id FROM bookings WHERE user_id = :id)")->execute([':id' => $user_id]);
-        $db->prepare("DELETE FROM payments WHERE booking_id IN (SELECT booking_id FROM bookings WHERE user_id = :id)")->execute([':id' => $user_id]);
-        $db->prepare("DELETE FROM bookings WHERE user_id = :id")->execute([':id' => $user_id]);
-    } catch (Throwable $e) {}
+    $attempts = $db->prepare("DELETE FROM login_attempts WHERE email = :email");
+    $attempts->execute([':email' => $user['email']]);
 
-    // Finally delete user
+    // Related bookings, payments, locks, and refresh tokens are removed by foreign-key cascades.
     $del = $db->prepare("DELETE FROM users WHERE user_id = :id");
     $del->bindParam(':id', $user_id);
     
-    if($del->execute()) {
+    if ($del->execute() && $del->rowCount() === 1) {
         $db->commit();
         http_response_code(200);
         echo json_encode(["status" => "success", "message" => "Account successfully deleted."]);

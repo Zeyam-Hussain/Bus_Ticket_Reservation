@@ -33,13 +33,13 @@ try {
     $bus_ids = [];
 
     if ($delete_all) {
-        $routes_stmt = $db->query("SELECT route_id FROM route WHERE departure_time < DATE_SUB(NOW(), INTERVAL 2 YEAR)");
+        $routes_stmt = $db->query("SELECT route_id FROM route WHERE departure_time < CURRENT_TIMESTAMP - INTERVAL '2 years'");
         $route_ids = $routes_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $bookings_stmt = $db->query("SELECT booking_id FROM booking WHERE booking_date < DATE_SUB(NOW(), INTERVAL 2 YEAR)");
+        $bookings_stmt = $db->query("SELECT booking_id FROM booking WHERE booking_date < CURRENT_TIMESTAMP - INTERVAL '2 years'");
         $booking_ids = $bookings_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        $buses_stmt = $db->query("SELECT bus_id FROM bus WHERE created_at < DATE_SUB(NOW(), INTERVAL 2 YEAR)");
+        $buses_stmt = $db->query("SELECT bus_id FROM bus WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '2 years'");
         $bus_ids = $buses_stmt->fetchAll(PDO::FETCH_COLUMN);
     } else {
         $route_ids = $data->route_ids ?? [];

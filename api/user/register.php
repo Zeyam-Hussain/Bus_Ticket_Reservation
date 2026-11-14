@@ -8,6 +8,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require_once '../../vendor/autoload.php';
+require_once '../../config/mailer.php';
 
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -70,27 +71,7 @@ if (
 // SMTP Function Helper
 function sendOtpEmail($toEmail, $toName, $otpCode) {
     $mail = new PHPMailer(true);
-    
-    $host = $_ENV['SMTP_HOST'] ?? '';
-    $port = $_ENV['SMTP_PORT'] ?? 587;
-    $user = $_ENV['SMTP_USER'] ?? '';
-    $pass = $_ENV['SMTP_PASS'] ?? '';
-    $from = $_ENV['SMTP_FROM'] ?? '';
-    $name = $_ENV['SMTP_FROM_NAME'] ?? 'Bus Reservation System';
-
-    if (empty($host) || empty($user) || empty($from)) {
-        throw new Exception("SMTP configuration is missing in .env file.");
-    }
-
-    $mail->isSMTP();
-    $mail->Host       = $host;
-    $mail->SMTPAuth   = true;
-    $mail->Username   = $user;
-    $mail->Password   = $pass;
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = (int)$port;
-
-    $mail->setFrom($from, $name);
+    configureSmtpMailer($mail);
     $mail->addAddress($toEmail, $toName);
 
     $mail->isHTML(true);
@@ -134,9 +115,9 @@ try {
 
         // OTP Request Limit Logic
         $requests = ($existingUser['otp_last_request'] === $today) ? (int)$existingUser['otp_requests'] : 0;
-        if ($requests >= 3) {
+        if ($requests >= 5) {
             http_response_code(429);
-            echo json_encode(["status" => "error", "message" => "OTP request limit reached for today (3/day). Try again tomorrow."]);
+            echo json_encode(["status" => "error", "message" => "OTP request limit reached for today (5/day). Try again tomorrow."]);
             exit();
         }
 
@@ -166,18 +147,13 @@ try {
     if ($stmt->execute()) {
         sendOtpEmail($email, $fullNameSafe, $otpCode);
         http_response_code(201);
-        $response = ["status" => "success", "message" => "Registration successful. Please check your email for the OTP.", "data" => ["email" => $email]];
-        // Only expose OTP in response during development
-        if (($_ENV['APP_ENV'] ?? 'production') === 'development') {
-            $response['data']['otp_debug'] = $otpCode;
-        }
-        echo json_encode($response);
+        echo json_encode(["status" => "success", "message" => "Registration successful. Please check your email for the OTP.", "data" => ["email" => $email]]);
     }
 
 } catch (Throwable $e) {
     error_log("Register error: " . $e->getMessage());
     http_response_code(500);
-    $app_env = $_ENV['APP_ENV'] ?? 'production';
+    $app_env = get_env_var('APP_ENV', 'production');
     $errorMsg = ($app_env === 'development') ? $e->getMessage() : "Registration failed or email could not be sent.";
     echo json_encode(["status" => "error", "message" => $errorMsg]);
 }

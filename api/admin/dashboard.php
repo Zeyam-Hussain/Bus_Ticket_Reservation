@@ -37,10 +37,26 @@ try {
     // 2. Month-over-month growth
     $mom_stmt = $db->query("
         SELECT
-            SUM(CASE WHEN MONTH(b.booking_date) = MONTH(CURRENT_DATE()) AND YEAR(b.booking_date) = YEAR(CURRENT_DATE()) THEN p.total_amount ELSE 0 END) AS this_month_revenue,
-            SUM(CASE WHEN MONTH(b.booking_date) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) AND YEAR(b.booking_date) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH) THEN p.total_amount ELSE 0 END) AS last_month_revenue,
-            COUNT(DISTINCT CASE WHEN MONTH(b.booking_date) = MONTH(CURRENT_DATE()) THEN b.user_id END) AS this_month_unique_customers,
-            COUNT(DISTINCT CASE WHEN MONTH(b.booking_date) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) THEN b.user_id END) AS last_month_unique_customers
+            SUM(CASE
+                WHEN b.booking_date >= date_trunc('month', CURRENT_DATE)
+                 AND b.booking_date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+                THEN p.total_amount ELSE 0
+            END) AS this_month_revenue,
+            SUM(CASE
+                WHEN b.booking_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
+                 AND b.booking_date < date_trunc('month', CURRENT_DATE)
+                THEN p.total_amount ELSE 0
+            END) AS last_month_revenue,
+            COUNT(DISTINCT CASE
+                WHEN b.booking_date >= date_trunc('month', CURRENT_DATE)
+                 AND b.booking_date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+                THEN b.user_id
+            END) AS this_month_unique_customers,
+            COUNT(DISTINCT CASE
+                WHEN b.booking_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
+                 AND b.booking_date < date_trunc('month', CURRENT_DATE)
+                THEN b.user_id
+            END) AS last_month_unique_customers
         FROM booking b
         LEFT JOIN payment p ON b.booking_id = p.booking_id AND p.transaction_status = 'completed'
         WHERE b.booking_status = 'confirmed'
@@ -62,16 +78,16 @@ try {
     // 3. Last 6 months chart data
     $chart_stmt = $db->query("
         SELECT
-            DATE_FORMAT(b.booking_date, '%Y-%m') AS month_year,
-            DATE_FORMAT(b.booking_date, '%b %Y') AS month_name,
+            TO_CHAR(date_trunc('month', b.booking_date), 'YYYY-MM') AS month_year,
+            TO_CHAR(date_trunc('month', b.booking_date), 'Mon YYYY') AS month_name,
             COUNT(b.booking_id) AS tickets_sold,
             COALESCE(SUM(p.total_amount), 0) AS monthly_revenue
         FROM booking b
         LEFT JOIN payment p ON b.booking_id = p.booking_id AND p.transaction_status = 'completed'
         WHERE b.booking_status = 'confirmed'
-          AND b.booking_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 MONTH)
-        GROUP BY month_year, month_name
-        ORDER BY month_year ASC
+          AND b.booking_date >= CURRENT_DATE - INTERVAL '6 months'
+        GROUP BY 1, 2
+        ORDER BY 1 ASC
     ");
     $response['chart_data'] = $chart_stmt->fetchAll(PDO::FETCH_ASSOC);
 

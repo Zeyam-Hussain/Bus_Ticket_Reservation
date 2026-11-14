@@ -77,6 +77,7 @@ try {
     $stmt = $db->prepare("
         INSERT INTO route (bus_id, source_city, destination_city, departure_time, arrival_time, base_fare, status)
         VALUES (:bus_id, :source, :destination, :departure, :arrival, :fare, 'active')
+        RETURNING route_id
     ");
     
     $stmt->bindValue(':bus_id',      $data->bus_id);
@@ -91,7 +92,7 @@ try {
         echo json_encode([
             "status"   => "success",
             "message"  => "Route created successfully.",
-            "route_id" => $db->lastInsertId()
+            "route_id" => (int) $stmt->fetchColumn()
         ]);
     } else {
         throw new Exception("Database insert failed.");

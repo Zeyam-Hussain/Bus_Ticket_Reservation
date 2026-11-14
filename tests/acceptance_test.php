@@ -1,5 +1,5 @@
 <?php
-// acceptance_test.php
+// tests/acceptance_test.php
 // This script assumes XAMPP is running and reachable at http://localhost/bus_backend
 
 $base_url = "http://localhost/bus_backend/api";

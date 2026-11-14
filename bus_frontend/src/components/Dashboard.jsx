@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { LayoutDashboard, Route as RouteIcon, Ticket, LogOut, Plus, Trash2, Edit, AlertTriangle, Bus, FileText } from 'lucide-react';
 
+const ROUTE_CITIES = ['Karachi', 'Lahore', 'Islamabad', 'Peshawar'];
+
+const toDateTimeLocal = (dateTime) => (dateTime ? dateTime.replace(' ', 'T').slice(0, 16) : '');
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
@@ -180,6 +184,16 @@ const Dashboard = () => {
 
   const handleRouteSubmit = async (e) => {
     e.preventDefault();
+    if (routeFormData.source_city === routeFormData.destination_city) {
+      alert('Source and destination must be different cities.');
+      return;
+    }
+
+    if (new Date(routeFormData.arrival_time) <= new Date(routeFormData.departure_time)) {
+      alert('Arrival time must be after departure time.');
+      return;
+    }
+
     const isEdit = !!routeFormData.route_id;
     const url = isEdit ? '/api/admin/update_route.php' : '/api/admin/create_route.php';
     const method = isEdit ? 'PUT' : 'POST';
@@ -508,8 +522,8 @@ const Dashboard = () => {
                               bus_id: route.bus_id,
                               source_city: route.source_city,
                               destination_city: route.destination_city,
-                              departure_time: route.departure_time,
-                              arrival_time: route.arrival_time,
+                              departure_time: toDateTimeLocal(route.departure_time),
+                              arrival_time: toDateTimeLocal(route.arrival_time),
                               base_fare: route.base_fare
                             });
                             setIsRouteModalOpen(true);
@@ -728,7 +742,7 @@ const Dashboard = () => {
       {/* Route Modal */}
       {isRouteModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+          <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold mb-6">{routeFormData.route_id ? 'Edit Route' : 'Add New Route'}</h3>
             <form onSubmit={handleRouteSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -750,19 +764,25 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-                  <input type="text" required value={routeFormData.source_city} onChange={e => setRouteFormData({...routeFormData, source_city: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" />
+                  <select required value={routeFormData.source_city} onChange={e => setRouteFormData({...routeFormData, source_city: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white">
+                    <option value="" disabled>Select a city</option>
+                    {ROUTE_CITIES.map(city => <option key={city} value={city} disabled={city === routeFormData.destination_city}>{city}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
-                  <input type="text" required value={routeFormData.destination_city} onChange={e => setRouteFormData({...routeFormData, destination_city: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" />
+                  <select required value={routeFormData.destination_city} onChange={e => setRouteFormData({...routeFormData, destination_city: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black bg-white">
+                    <option value="" disabled>Select a city</option>
+                    {ROUTE_CITIES.map(city => <option key={city} value={city} disabled={city === routeFormData.source_city}>{city}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Departure (YYYY-MM-DD HH:MM:SS)</label>
-                  <input type="text" placeholder="2024-05-20 10:00:00" required value={routeFormData.departure_time} onChange={e => setRouteFormData({...routeFormData, departure_time: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Departure date and time</label>
+                  <input type="datetime-local" required value={routeFormData.departure_time} onChange={e => setRouteFormData({...routeFormData, departure_time: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Arrival (YYYY-MM-DD HH:MM:SS)</label>
-                  <input type="text" placeholder="2024-05-20 14:00:00" required value={routeFormData.arrival_time} onChange={e => setRouteFormData({...routeFormData, arrival_time: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Arrival date and time</label>
+                  <input type="datetime-local" required value={routeFormData.arrival_time} onChange={e => setRouteFormData({...routeFormData, arrival_time: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Base Fare (Rs.)</label>

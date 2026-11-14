@@ -65,11 +65,12 @@ try {
     // Insert or update lock (Upsert)
     $lock_stmt = $db->prepare("
         INSERT INTO seat_locks (route_id, seat_id, user_id, gender, locked_until) 
-        VALUES (:route_id, :seat_id, :user_id, :gender, DATE_ADD(NOW(), INTERVAL 10 MINUTE))
-        ON DUPLICATE KEY UPDATE 
-            user_id = VALUES(user_id), 
-            gender = VALUES(gender), 
-            locked_until = DATE_ADD(NOW(), INTERVAL 10 MINUTE)
+        VALUES (:route_id, :seat_id, :user_id, :gender, CURRENT_TIMESTAMP + INTERVAL '10 minutes')
+        ON CONFLICT (route_id, seat_id) DO UPDATE
+        SET gender = EXCLUDED.gender,
+            locked_until = EXCLUDED.locked_until
+        WHERE seat_locks.user_id = EXCLUDED.user_id
+        RETURNING lock_id
     ");
     
     $lock_stmt->bindParam(':route_id', $route_id);
@@ -77,6 +78,9 @@ try {
     $lock_stmt->bindParam(':user_id', $user_id);
     $lock_stmt->bindParam(':gender', $gender);
     $lock_stmt->execute();
+    if ($lock_stmt->fetchColumn() === false) {
+        throw new Exception("Seat is currently held by another user.", 409);
+    }
 
     $db->commit();
     http_response_code(200);

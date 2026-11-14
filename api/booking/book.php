@@ -73,7 +73,7 @@ try {
         $seat_exist->bindParam(':seat_id', $seat_id);
         $seat_exist->execute();
 
-        if ($seat_exist->rowCount() === 0) {
+        if ($seat_exist->fetchColumn() === false) {
             throw new Exception("Seat ID $seat_id does not exist.", 400);
         }
 
@@ -132,6 +132,7 @@ try {
         $insert = $db->prepare("
             INSERT INTO booking (user_id, route_id, seat_id, passenger_gender, booking_date, booking_status)
             VALUES (:user_id, :route_id, :seat_id, :gender, NOW(), 'pending')
+            RETURNING booking_id
         ");
         $insert->bindParam(':user_id',  $user_id);
         $insert->bindParam(':route_id', $data['route_id']);
@@ -139,7 +140,7 @@ try {
         $insert->bindParam(':gender',   $gender);
         $insert->execute();
 
-        $booking_ids[] = (int)$db->lastInsertId();
+        $booking_ids[] = (int)$insert->fetchColumn();
 
         // 6. Clear lock
         $clear_lock = $db->prepare("DELETE FROM seat_locks WHERE route_id = :route_id AND seat_id = :seat_id");

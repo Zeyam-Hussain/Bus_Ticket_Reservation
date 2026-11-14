@@ -79,8 +79,8 @@ try {
         case 'monthly':
             $stmt = $db->query("
                 SELECT
-                    DATE_FORMAT(b.booking_date, '%Y-%m')   AS month_year,
-                    DATE_FORMAT(b.booking_date, '%b %Y')   AS month_label,
+                    TO_CHAR(date_trunc('month', b.booking_date), 'YYYY-MM') AS month_year,
+                    TO_CHAR(date_trunc('month', b.booking_date), 'Mon YYYY') AS month_label,
                     COUNT(b.booking_id)                    AS total_bookings,
                     SUM(CASE WHEN b.booking_status='confirmed' THEN 1 ELSE 0 END) AS confirmed,
                     SUM(CASE WHEN b.booking_status='cancelled' THEN 1 ELSE 0 END) AS cancelled,
@@ -89,7 +89,7 @@ try {
                 LEFT JOIN payment p
                        ON b.booking_id = p.booking_id
                       AND p.transaction_status = 'completed'
-                GROUP BY month_year, month_label
+                GROUP BY 1, 2
                 ORDER BY month_year ASC
             ");
             $data = $stmt->fetchAll(PDO::FETCH_ASSOC);

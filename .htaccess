@@ -4,8 +4,7 @@
   
   # Protect .env file
   <Files ".env">
-    Order allow,deny
-    Deny from all
+    Require all denied
   </Files>
 
   # Don't rewrite for actual files or directories (allows API and assets to work)
@@ -16,4 +15,3 @@
   # Redirect all other requests to index.html for React Router
   RewriteRule ^ index.html [L]
 </IfModule>
-

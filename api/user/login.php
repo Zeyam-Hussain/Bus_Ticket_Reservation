@@ -29,7 +29,7 @@ try {
     $rate_stmt = $db->prepare("
         SELECT COUNT(*) as attempts FROM login_attempts
         WHERE ip_address = :ip
-          AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+          AND attempted_at > CURRENT_TIMESTAMP - INTERVAL '15 minutes'
           AND success = 0
     ");
     $rate_stmt->bindParam(':ip', $ip);
