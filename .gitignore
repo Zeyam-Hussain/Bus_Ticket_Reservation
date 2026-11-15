@@ -7,3 +7,6 @@ composer.phar
 dist/
 bus_frontend/node_modules/
 bus_frontend/dist/
+ai_service/model.joblib
+__pycache__/
+*.py[cod]

@@ -170,7 +170,7 @@ const BusRoute = ({ departure, arrival, duration, from, to, index }) => {
 };
 
 /* ─────────────── PRICE PANEL ─────────────────── */
-const PricePanel = ({ price, seatsLeft }) => (
+const PricePanel = ({ price, seatsLeft, dynamic, quoteExpiresAt, baseFallback }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', minWidth: 140 }}>
     <div style={{
       background: THEME.seatBadgeBg,
@@ -196,11 +196,23 @@ const PricePanel = ({ price, seatsLeft }) => (
       onMouseEnter={e => { e.currentTarget.style.background = '#ffd54f'; e.currentTarget.style.transform = 'scale(1.04)'; }}
       onMouseLeave={e => { e.currentTarget.style.background = THEME.accent; e.currentTarget.style.transform = 'scale(1)'; }}
     >
-      <div style={{ fontSize: 11, color: '#1a1200', fontWeight: 500, marginBottom: 2 }}>Starting from</div>
+      <div style={{ fontSize: 11, color: '#1a1200', fontWeight: 500, marginBottom: 2 }}>
+        {dynamic ? 'Your fare (locked)' : 'Base fare'}
+      </div>
       <div style={{ fontSize: 20, fontWeight: 800, color: '#0a0e27', fontFamily: 'Syne, sans-serif', lineHeight: 1 }}>
-        PKR {price.toLocaleString()}
+        PKR {Number(price).toLocaleString('en-PK', { maximumFractionDigits: 2 })}
       </div>
     </div>
+    {dynamic && quoteExpiresAt && (
+      <div style={{ color: THEME.muted, fontSize: 10, textAlign: 'right' }}>
+        Locked until {new Date(quoteExpiresAt.replace(' ', 'T')).toLocaleTimeString()}
+      </div>
+    )}
+    {baseFallback && (
+      <div style={{ color: '#fbbf24', fontSize: 10, textAlign: 'right' }}>
+        AI unavailable; showing base fare
+      </div>
+    )}
   </div>
 );
 
@@ -274,7 +286,13 @@ const BusCard = ({ bus, index, onClick }) => {
       <div style={{ width: 1, alignSelf: 'stretch', background: THEME.border, flexShrink: 0 }} />
 
       {/* RIGHT: Price */}
-      <PricePanel price={bus.price} seatsLeft={bus.seatsLeft} />
+      <PricePanel
+        price={bus.price}
+        seatsLeft={bus.seatsLeft}
+        dynamic={bus.dynamic}
+        quoteExpiresAt={bus.quoteExpiresAt}
+        baseFallback={bus.baseFallback}
+      />
     </div>
   );
 };
@@ -401,17 +419,46 @@ const BusResults = () => {
   const [displayedBuses, setDisplayedBuses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pricingWarning, setPricingWarning] = useState('');
 
   useEffect(() => {
     const fetchRoutes = async () => {
       setIsLoading(true);
       setError(null);
+      setPricingWarning('');
       try {
         const res = await fetch(`/api/route/search.php?source=${encodeURIComponent(fromCity)}&destination=${encodeURIComponent(toCity)}`);
         const json = await res.json();
         
         if (json.status === 'success' && json.data) {
-          const mapped = json.data.map((r) => ({
+          let quotes = {};
+          let quoteUnavailable = false;
+          const token = localStorage.getItem('access_token');
+          try {
+            if (token && json.data.length > 0) {
+              const quoteResponse = await fetch('/api/pricing/quote.php', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ route_ids: json.data.map((route) => route.route_id) }),
+              });
+              const quoteResult = await quoteResponse.json();
+              if (!quoteResponse.ok || quoteResult.status !== 'success') {
+                throw new Error(quoteResult.message || 'Could not load current fare quotes.');
+              }
+              quotes = quoteResult.data || {};
+            }
+          } catch (quoteError) {
+            console.error('Fare quote load error:', quoteError);
+            quoteUnavailable = true;
+            setPricingWarning('Current fares could not be confirmed. Base fares are shown; refresh prices before booking.');
+          }
+
+          const mapped = json.data.map((r) => {
+            const quote = quotes[r.route_id];
+            return {
             id: r.route_id,
             company: 'All Ride',
             type: r.bus_type || 'Standard',
@@ -420,10 +467,15 @@ const BusResults = () => {
             departure: formatTime(r.departure_time),
             arrival: formatTime(r.arrival_time),
             duration: calculateDuration(r.departure_time, r.arrival_time),
-            price: parseFloat(r.base_fare),
+            price: quote ? Number(quote.fare) : parseFloat(r.base_fare),
+            quoteId: quote?.quote_id ?? null,
+            quoteExpiresAt: quote?.expires_at ?? null,
+            dynamic: quote?.source === 'ai',
+            baseFallback: quote?.source === 'base_fallback' || quoteUnavailable,
             seatsLeft: r.available_seats !== null ? parseInt(r.available_seats) : parseInt(r.total_capacity || 40),
             amenities: getAmenities(r.bus_type)
-          }));
+            };
+          });
           setBusesData(mapped);
         } else {
           setBusesData([]);
@@ -529,6 +581,20 @@ const BusResults = () => {
           <div style={{ marginBottom: 24 }}>
             <HeroSection from={fromCity} to={toCity} gender={gender} date={date} />
           </div>
+
+          {pricingWarning && (
+            <div role="status" style={{
+              marginBottom: 20,
+              padding: '12px 16px',
+              border: '1px solid rgba(251,191,36,0.35)',
+              borderRadius: 12,
+              background: 'rgba(251,191,36,0.08)',
+              color: '#fbbf24',
+              fontSize: 13,
+            }}>
+              {pricingWarning}
+            </div>
+          )}
 
           {/* Filter tabs */}
           <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>

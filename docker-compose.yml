@@ -26,6 +26,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      ai_service:
+        condition: service_started
     ports:
       - "127.0.0.1:8080:80"
     environment:
@@ -48,6 +50,28 @@ services:
       SMTP_FROM: ${SMTP_FROM:?Set SMTP_FROM in .env}
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Bus Reservation System}
       API_BASE_URL: http://localhost:8080/api
+      AI_SERVICE_URL: http://ai_service:8000
+      AI_SERVICE_SECRET: ${AI_SERVICE_SECRET:?Set AI_SERVICE_SECRET in .env}
+
+  ai_service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      AI_SERVICE_SECRET: ${AI_SERVICE_SECRET:?Set AI_SERVICE_SECRET in .env}
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
 
 volumes:
   postgres_data:

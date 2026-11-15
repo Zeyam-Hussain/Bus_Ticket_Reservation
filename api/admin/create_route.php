@@ -75,8 +75,14 @@ try {
     }
 
     $stmt = $db->prepare("
-        INSERT INTO route (bus_id, source_city, destination_city, departure_time, arrival_time, base_fare, status)
-        VALUES (:bus_id, :source, :destination, :departure, :arrival, :fare, 'active')
+        INSERT INTO route (
+            bus_id, source_city, destination_city, departure_time, arrival_time,
+            base_fare, min_fare, max_fare, status
+        )
+        VALUES (
+            :bus_id, :source, :destination, :departure, :arrival,
+            :fare, :min_fare, :max_fare, 'active'
+        )
         RETURNING route_id
     ");
     
@@ -86,6 +92,8 @@ try {
     $stmt->bindValue(':departure',   $data->departure_time);
     $stmt->bindValue(':arrival',     $data->arrival_time);
     $stmt->bindValue(':fare',        $data->base_fare);
+    $stmt->bindValue(':min_fare',    round((float) $data->base_fare * 0.80, 2));
+    $stmt->bindValue(':max_fare',    round((float) $data->base_fare * 1.50, 2));
 
     if ($stmt->execute()) {
         http_response_code(201);

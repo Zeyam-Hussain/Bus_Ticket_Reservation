@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { LayoutDashboard, Route as RouteIcon, Ticket, LogOut, Plus, Trash2, Edit, AlertTriangle, Bus, FileText } from 'lucide-react';
+import { LayoutDashboard, Route as RouteIcon, Ticket, LogOut, Plus, Trash2, Edit, AlertTriangle, Bus, FileText, DollarSign } from 'lucide-react';
+import AdminPricing from './AdminPricing';
 
 const ROUTE_CITIES = ['Karachi', 'Lahore', 'Islamabad', 'Peshawar'];
 
@@ -19,7 +20,7 @@ const Dashboard = () => {
   // Old Data Cleanup
   const [oldData, setOldData] = useState(null);
   const [isCleanupModalOpen, setIsCleanupModalOpen] = useState(false);
-  const [selectedCleanupItems, setSelectedCleanupItems] = useState({ routes: [], bookings: [], buses: [] });
+  const [selectedCleanupItems] = useState({ routes: [], bookings: [], buses: [] });
 
   // Routes Data
   const [routes, setRoutes] = useState([]);
@@ -36,6 +37,8 @@ const Dashboard = () => {
   
   // Bookings Data
   const [bookings, setBookings] = useState([]);
+  const [isBookingsLoading, setIsBookingsLoading] = useState(false);
+  const [bookingsError, setBookingsError] = useState('');
 
   // Buses Data
   const [buses, setBuses] = useState([]);
@@ -106,14 +109,20 @@ const Dashboard = () => {
   };
 
   const fetchBookings = async () => {
+    setIsBookingsLoading(true);
+    setBookingsError('');
     try {
       const res = await fetch('/api/admin/get_all_bookings.php', { headers: getHeaders() });
       const data = await res.json();
-      if (data.status === 'success') {
-        setBookings(data.data);
+      if (!res.ok || data.status !== 'success') {
+        throw new Error(data.message || 'Failed to load bookings.');
       }
-    } catch (e) {
-      console.error(e);
+      setBookings(data.data || []);
+    } catch (error) {
+      console.error('Bookings load error:', error);
+      setBookingsError(error.message || 'Unable to load bookings. Please try again.');
+    } finally {
+      setIsBookingsLoading(false);
     }
   };
 
@@ -382,6 +391,12 @@ const Dashboard = () => {
           >
             <FileText className="w-5 h-5" /> Reports
           </button>
+          <button
+            onClick={() => setActiveTab('pricing')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'pricing' ? 'bg-gray-100 text-black' : 'text-gray-500 hover:text-black hover:bg-gray-50'}`}
+          >
+            <DollarSign className="w-5 h-5" /> Dynamic Pricing
+          </button>
         </nav>
 
         <button 
@@ -559,25 +574,67 @@ const Dashboard = () => {
               <p className="text-gray-500">View and manage all customer bookings.</p>
             </div>
 
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                {bookings.length} booking{bookings.length === 1 ? '' : 's'}
+              </p>
+              <button
+                type="button"
+                onClick={fetchBookings}
+                disabled={isBookingsLoading}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isBookingsLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+
+            {bookingsError && (
+              <div role="alert" className="flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <span>{bookingsError}</span>
+                <button type="button" onClick={fetchBookings} className="shrink-0 font-semibold underline">
+                  Try again
+                </button>
+              </div>
+            )}
+
             <div className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-4 font-medium text-gray-500">ID</th>
                     <th className="px-6 py-4 font-medium text-gray-500">Customer</th>
                     <th className="px-6 py-4 font-medium text-gray-500">Route</th>
-                    <th className="px-6 py-4 font-medium text-gray-500">Date</th>
+                    <th className="px-6 py-4 font-medium text-gray-500">Seat</th>
+                    <th className="px-6 py-4 font-medium text-gray-500">Booked</th>
+                    <th className="px-6 py-4 font-medium text-gray-500">Amount</th>
                     <th className="px-6 py-4 font-medium text-gray-500">Status</th>
                     <th className="px-6 py-4 font-medium text-gray-500 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {bookings.map(booking => (
+                  {bookings.map((booking) => (
                     <tr key={booking.booking_id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 font-medium">{booking.booking_id}</td>
-                      <td className="px-6 py-4">{booking.passenger_name || `User #${booking.user_id}`}</td>
-                      <td className="px-6 py-4">Route #{booking.route_id}</td>
-                      <td className="px-6 py-4">{new Date(booking.booking_date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium">{booking.passenger_name || `User #${booking.user_id}`}</div>
+                        <div className="text-xs text-gray-500">{booking.passenger_email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>{booking.source_city} → {booking.destination_city}</div>
+                        <div className="text-xs text-gray-500">Route #{booking.route_id}</div>
+                      </td>
+                      <td className="px-6 py-4">{booking.seat_number || '—'}</td>
+                      <td className="px-6 py-4">
+                        {booking.booking_date
+                          ? new Date(booking.booking_date.replace(' ', 'T')).toLocaleString()
+                          : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        {booking.total_amount != null
+                          ? `PKR ${Number(booking.total_amount).toLocaleString()}`
+                          : 'Unpaid'}
+                      </td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           booking.booking_status === 'confirmed' ? 'bg-green-100 text-green-800' : 
@@ -598,13 +655,19 @@ const Dashboard = () => {
                       </td>
                     </tr>
                   ))}
-                  {bookings.length === 0 && (
+                  {isBookingsLoading && bookings.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="px-6 py-8 text-center text-gray-500">No bookings found.</td>
+                      <td colSpan="8" className="px-6 py-8 text-center text-gray-500">Loading bookings…</td>
+                    </tr>
+                  )}
+                  {!isBookingsLoading && !bookingsError && bookings.length === 0 && (
+                    <tr>
+                      <td colSpan="8" className="px-6 py-8 text-center text-gray-500">No bookings found.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
@@ -731,12 +794,15 @@ const Dashboard = () => {
                         <td colSpan="10" className="px-6 py-8 text-center text-gray-500">No report data found.</td>
                       </tr>
                     )}
+
                   </tbody>
                 </table>
               </div>
             )}
           </div>
         )}
+
+        {activeTab === 'pricing' && <AdminPricing />}
       </main>
 
       {/* Route Modal */}

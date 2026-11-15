@@ -87,16 +87,15 @@ $database = new Database();
 $db = $database->getConnection();
 $data = json_decode(file_get_contents("php://input"));
 
-if (empty($data->booking_id) || empty($data->total_amount) || empty($data->payment_method)) {
+if (empty($data->booking_id) || empty($data->payment_method)) {
     http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "booking_id, total_amount, and payment_method are required."]);
+    echo json_encode(["status" => "error", "message" => "booking_id and payment_method are required."]);
     exit();
 }
 
-// Validate amount is a positive number
-if (!is_numeric($data->total_amount) || $data->total_amount <= 0) {
+if (filter_var($data->booking_id, FILTER_VALIDATE_INT) === false || (int) $data->booking_id < 1) {
     http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "total_amount must be a positive number."]);
+    echo json_encode(["status" => "error", "message" => "booking_id must be a positive integer."]);
     exit();
 }
 
@@ -115,6 +114,7 @@ try {
     // Verify booking exists and belongs to the logged-in user
     $check = $db->prepare("
         SELECT b.booking_status, b.user_id, b.booking_id,
+               b.fare_charged AS payable_amount,
                u.email, u.full_name,
                r.source_city, r.destination_city, r.departure_time,
                s.seat_number
@@ -124,8 +124,9 @@ try {
         JOIN seat s ON b.seat_id = s.seat_id
         WHERE b.booking_id = :booking_id
         LIMIT 1
+        FOR UPDATE OF b
     ");
-    $check->bindParam(':booking_id', $data->booking_id);
+    $check->bindValue(':booking_id', (int) $data->booking_id, PDO::PARAM_INT);
     $check->execute();
 
     if ($check->rowCount() === 0) {
@@ -159,9 +160,9 @@ try {
         INSERT INTO payment (booking_id, total_amount, payment_method, transaction_status)
         VALUES (:booking_id, :total_amount, :payment_method, 'completed')
     ");
-    $pay->bindParam(':booking_id', $data->booking_id);
-    $pay->bindParam(':total_amount', $data->total_amount);
-    $pay->bindParam(':payment_method', $data->payment_method);
+    $pay->bindValue(':booking_id', (int) $data->booking_id, PDO::PARAM_INT);
+    $pay->bindValue(':total_amount', $booking['payable_amount']);
+    $pay->bindValue(':payment_method', strtolower($data->payment_method));
     $pay->execute();
 
     // 2. Confirm booking
@@ -174,7 +175,7 @@ try {
     $db->commit();
 
     // 3. Send confirmation email
-    $booking['total_amount'] = $data->total_amount;
+    $booking['total_amount'] = $booking['payable_amount'];
     sendBookingConfirmationEmail($booking['email'], $booking['full_name'], $booking);
 
     http_response_code(201);

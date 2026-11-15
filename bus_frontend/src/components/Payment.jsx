@@ -18,6 +18,8 @@ const Payment = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { trip = {}, bus = {}, selectedSeats = [], seatGenders = {}, totalPrice = 0 } = location.state || {};
+  const pricePerSeat = Number(bus.price) || (selectedSeats.length ? Number(totalPrice) / selectedSeats.length : 0);
+  const orderTotal = pricePerSeat * selectedSeats.length;
 
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [loading, setLoading] = useState(false);
@@ -59,6 +61,7 @@ const Payment = () => {
       const token = localStorage.getItem('access_token');
       const payload = {
           route_id: bus.id,
+          quote_id: bus.quoteId || null,
           seats: selectedSeats.map(id => ({ seat_id: id, gender: seatGenders[id] === 'male' ? 'Male' : 'Female' }))
       };
 
@@ -75,7 +78,9 @@ const Payment = () => {
       if (res.ok && json.status === 'success') {
           // ── Step 2: Record payment for each booking & confirm it in DB ──────
           const bookingIds = json.booking_ids || [];
-          const amountPerSeat = parseFloat((totalPrice / (bookingIds.length || 1)).toFixed(2));
+          if (bookingIds.length !== selectedSeats.length) {
+              throw new Error('Booking response did not include every selected seat. Contact support before retrying.');
+          }
 
           const paymentErrors = [];
 
@@ -89,7 +94,6 @@ const Payment = () => {
                       },
                       body: JSON.stringify({
                           booking_id: bid,
-                          total_amount: amountPerSeat,
                           payment_method: paymentMethod  // card | bank | easypaisa | jazzcash
                       })
                   });
@@ -99,7 +103,7 @@ const Payment = () => {
                   if (!payRes.ok || payJson.status !== 'success') {
                       paymentErrors.push(payJson.message || `Payment failed for booking #${bid}.`);
                   }
-              } catch (netErr) {
+              } catch {
                   paymentErrors.push(`Network error for booking #${bid}. Check your connection.`);
               }
           }
@@ -120,7 +124,7 @@ const Payment = () => {
           setErrorPop(json.message || 'Booking failed. Please try again.');
           setLoading(false);
       }
-    } catch (error) {
+    } catch {
       setErrorPop('Network error. Please check your connection and try again.');
       setLoading(false);
     }
@@ -321,8 +325,8 @@ const Payment = () => {
                      <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{selectedSeats.length}</span>
                    </div>
                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                     <span style={{ fontSize: 14, color: T.muted }}>Base Fare</span>
-                     <span style={{ fontSize: 14, color: '#fff' }}>PKR {totalPrice.toLocaleString()}</span>
+                     <span style={{ fontSize: 14, color: T.muted }}>Fare per seat</span>
+                     <span style={{ fontSize: 14, color: '#fff' }}>PKR {pricePerSeat.toLocaleString()}</span>
                    </div>
                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                      <span style={{ fontSize: 14, color: T.muted }}>Service Fee</span>
@@ -333,7 +337,7 @@ const Payment = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 0', borderTop: `1px dashed ${T.borderBright}`, marginBottom: 24 }}>
                   <span style={{ fontSize: 16, fontWeight: 500, color: '#fff' }}>Total Amount</span>
                   <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 24, fontWeight: 800, color: T.accent }}>
-                    PKR {totalPrice.toLocaleString()}
+                    PKR {orderTotal.toLocaleString()}
                   </span>
                 </div>
 

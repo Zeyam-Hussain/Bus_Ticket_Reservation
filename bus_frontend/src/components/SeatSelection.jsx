@@ -135,7 +135,7 @@ const InfoSidebar = ({ trip, bus }) => {
     { label: 'Gender:', value: trip.gender },
     { label: 'Date:', value: trip.date },
     { label: 'Bus:', value: bus.company },
-    { label: 'Price:', value: `PKR ${(bus.price || 0).toLocaleString()}`, highlight: true },
+    { label: bus.dynamic ? 'Your fare (locked):' : 'Fare per seat:', value: `PKR ${(bus.price || 0).toLocaleString()}`, highlight: true },
   ];
   return (
     <div style={{
@@ -981,6 +981,10 @@ const SeatSelection = () => {
   };
   const busData = {
     id: bus.id || 1,
+    quoteId: bus.quoteId || null,
+    dynamic: bus.dynamic === true,
+    quoteExpiresAt: bus.quoteExpiresAt || null,
+    baseFallback: bus.baseFallback === true,
     company: bus.company || 'All Ride',
     type: bus.type || 'Business Plus',
     from: bus.from || tripData.fromCity,
@@ -1226,6 +1230,7 @@ const SeatSelection = () => {
       const token = localStorage.getItem('access_token');
       const payload = {
           route_id: busData.id,
+          quote_id: busData.quoteId,
           seats: selectedSeats.map(id => ({ seat_id: id, gender: seatGenders[id] === 'male' ? 'Male' : 'Female' }))
       };
 
@@ -1242,8 +1247,11 @@ const SeatSelection = () => {
       if (res.ok && json.status === 'success') {
           // Process payment for the newly created booking(s)
           const bIds = json.booking_ids || [];
-          for (let bId of bIds) {
-              await fetch('/api/payment/process.php', {
+          if (bIds.length !== selectedSeats.length) {
+              throw new Error('Booking response did not include every selected seat. Contact support before retrying.');
+          }
+          for (const bId of bIds) {
+              const paymentResponse = await fetch('/api/payment/process.php', {
                   method: 'POST',
                   headers: { 
                       'Content-Type': 'application/json',
@@ -1251,10 +1259,13 @@ const SeatSelection = () => {
                   },
                   body: JSON.stringify({
                       booking_id: bId,
-                      total_amount: busData.price,
                       payment_method: paymentMethod
                   })
-              }).catch(err => console.error("Payment Error:", err));
+              });
+              const paymentResult = await paymentResponse.json();
+              if (!paymentResponse.ok || paymentResult.status !== 'success') {
+                  throw new Error(paymentResult.message || `Payment failed for booking #${bId}.`);
+              }
           }
 
           setPaymentSuccess(true);
@@ -1627,12 +1638,24 @@ const SeatSelection = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     <h3 style={{ fontSize: 16, fontFamily: 'Syne, sans-serif' }}>Summary</h3>
                     <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 16, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {busData.dynamic && (
+                          <div style={{ color: T.accent, fontSize: 11 }}>
+                            Fare locked until {busData.quoteExpiresAt
+                              ? new Date(busData.quoteExpiresAt.replace(' ', 'T')).toLocaleTimeString()
+                              : 'expiry'}.
+                          </div>
+                        )}
+                        {busData.baseFallback && (
+                          <div style={{ color: '#fbbf24', fontSize: 11 }}>
+                            AI pricing is unavailable; the base fare is being used.
+                          </div>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                            <span style={{ color: T.muted }}>Seats Selected</span>
                            <span style={{ color: '#fff' }}>{selectedSeats.length}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                           <span style={{ color: T.muted }}>Base Fare</span>
+                           <span style={{ color: T.muted }}>Fare per seat</span>
                            <span style={{ color: '#fff' }}>PKR {(selectedSeats.length * busData.price).toLocaleString()}</span>
                         </div>
                         <div style={{ height: 1, background: T.border, margin: '8px 0' }} />

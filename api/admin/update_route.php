@@ -89,6 +89,10 @@ try {
         }
         $update_fields[] = "base_fare = :base_fare";
         $params[':base_fare'] = $data->base_fare;
+        $update_fields[] = "min_fare = LEAST(min_fare, :min_fare_base)";
+        $params[':min_fare_base'] = $data->base_fare;
+        $update_fields[] = "max_fare = GREATEST(max_fare, :max_fare_base)";
+        $params[':max_fare_base'] = $data->base_fare;
     }
 
     if (empty($update_fields)) {
