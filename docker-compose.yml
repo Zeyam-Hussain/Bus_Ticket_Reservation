@@ -53,6 +53,13 @@ services:
       AI_SERVICE_URL: http://ai_service:8000
       AI_SERVICE_SECRET: ${AI_SERVICE_SECRET:?Set AI_SERVICE_SECRET in .env}
 
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    expose:
+      - "11434"
+
   ai_service:
     build:
       context: ./ai_service
@@ -60,6 +67,12 @@ services:
     restart: unless-stopped
     environment:
       AI_SERVICE_SECRET: ${AI_SERVICE_SECRET:?Set AI_SERVICE_SECRET in .env}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      - ollama
     expose:
       - "8000"
     healthcheck:
@@ -75,3 +88,4 @@ services:
 
 volumes:
   postgres_data:
+  ollama_data:

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import UserProfile from "./UserProfile";
 import TicketView from "./TicketView";
 import { useTicketDownload } from "../hooks/useTicketDownload";
+import SupportChat from "./SupportChat";
 import "./Index.css";
 
 /* ─── embedded bus images ─────────────────────────────────────────── */
@@ -596,6 +597,7 @@ export default function Home() {
                     </div>
                 </div>
             )}
+            <SupportChat />
         </div>
     );
 }

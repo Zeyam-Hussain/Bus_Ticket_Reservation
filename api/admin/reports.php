@@ -69,6 +69,7 @@ try {
                 LEFT JOIN booking b ON u.user_id = b.user_id
                 LEFT JOIN payment p ON b.booking_id = p.booking_id AND p.transaction_status = 'completed'
                 WHERE u.role = 'passenger'
+                  AND u.is_verified = 1
                 GROUP BY u.user_id, u.full_name, u.email
                 ORDER BY total_spent DESC
             ");

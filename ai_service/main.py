@@ -10,6 +10,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from features import featurize, rule_demand
+from rag_api import router as rag_router
 
 logger = logging.getLogger(__name__)
 SECRET = os.environ.get("AI_SERVICE_SECRET", "")
@@ -23,6 +24,7 @@ except (OSError, EOFError, ValueError, ImportError) as error:
     model = None
 
 app = FastAPI(title="AllRide dynamic pricing service")
+app.include_router(rag_router)
 
 
 class PricingRequest(BaseModel):
